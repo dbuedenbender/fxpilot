@@ -16,6 +16,7 @@
 - Updated Maven compiler, surefire, jar, source, javadoc and GPG plugins
 - Updated JUnit to the latest 5.x release
 - Enforced GPG signing best practices
+- Moved the Central publishing plugin into the release profile so normal CI builds do not depend on it
 - Added the Maven Central and Javadoc badges
 
 ### Fixed
