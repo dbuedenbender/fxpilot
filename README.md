@@ -2,6 +2,7 @@
 
 [![build](https://github.com/dbuedenbender/fxpilot/actions/workflows/build.yml/badge.svg)](https://github.com/dbuedenbender/fxpilot/actions/workflows/build.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.dbuedenbender/fxpilot.svg)](https://central.sonatype.com/artifact/io.github.dbuedenbender/fxpilot)
+[![Javadoc](https://img.shields.io/badge/javadoc-latest-blue)](https://dbuedenbender.github.io/fxpilot/)
 
 FxPilot lets Claude Code drive a running JavaFX application: read the scene graph, click, enter text, select items and take screenshots. It has two parts:
 
