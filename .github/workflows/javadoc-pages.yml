@@ -27,7 +27,13 @@ jobs:
           cache: maven
 
       - name: Generate Javadoc
-        run: mvn -B javadoc:javadoc
+        run: |
+          for attempt in 1 2 3; do
+            mvn -B javadoc:javadoc && exit 0
+            echo "Maven failed (attempt ${attempt}), retrying..."
+            sleep 15
+          done
+          exit 1
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

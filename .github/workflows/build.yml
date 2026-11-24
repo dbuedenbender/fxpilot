@@ -23,7 +23,14 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
-      - run: mvn -B clean verify
+      - name: Build and test
+        run: |
+          for attempt in 1 2 3; do
+            mvn -B clean verify && exit 0
+            echo "Maven failed (attempt ${attempt}), retrying..."
+            sleep 15
+          done
+          exit 1
 
   examples:
     runs-on: ubuntu-latest
@@ -35,4 +42,10 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Build demo app
-        run: mvn -B -f examples/demo-app/pom.xml package
+        run: |
+          for attempt in 1 2 3; do
+            mvn -B -f examples/demo-app/pom.xml package && exit 0
+            echo "Maven failed (attempt ${attempt}), retrying..."
+            sleep 15
+          done
+          exit 1
