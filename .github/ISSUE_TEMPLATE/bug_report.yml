@@ -1,0 +1,81 @@
+name: Bug report
+description: Report a reproducible problem with FxPilot.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please remove tokens, passwords and application data from logs and screenshots.
+  - type: input
+    id: fxpilot-version
+    attributes:
+      label: FxPilot version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: java-version
+    attributes:
+      label: Java version
+      placeholder: "java -version"
+    validations:
+      required: true
+  - type: input
+    id: javafx-version
+    attributes:
+      label: JavaFX version
+      placeholder: "17.0.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: integration
+    attributes:
+      label: Integration mode
+      options:
+        - Maven dependency
+        - Java agent
+        - MCP server only
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the actual and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal steps, selector, tool call or replay plan.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Remove tokens, passwords and sensitive application data.
+      render: text
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I removed secrets and sensitive data from this report.
+          required: true
+        - label: I searched existing issues for the same problem.
+          required: true

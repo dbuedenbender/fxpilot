@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest a new tool, selector, integration or documentation improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to automate, and what is missing?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the tool, API or behavior you would like to see.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing tools, workarounds or other approaches.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Core endpoint
+        - MCP server
+        - Java agent
+        - Selectors
+        - Controls and components
+        - Record and replay
+        - Screenshots and visual testing
+        - Documentation
+        - Build and release
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and the README for this feature.
+          required: true

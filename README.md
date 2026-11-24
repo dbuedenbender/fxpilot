@@ -15,6 +15,25 @@ Requirements: JDK 11 or newer, JavaFX 11 or newer. The app only needs `javafx-co
 
 > **Modular apps:** the endpoint uses `com.sun.net.httpserver`, which lives in the `jdk.httpserver` module. Classpath launches resolve it automatically, but an app started with `--module-path` and a `module-info.java` needs `requires jdk.httpserver;` (or `--add-modules jdk.httpserver`).
 
+## Quick start
+
+1. Start a JavaFX app with the agent:
+
+   ```bat
+   java -javaagent:C:\path\to\fxpilot.jar=port=8765 -jar YourApp.jar
+   ```
+
+2. Register the MCP server for Claude Code:
+
+   ```bat
+   claude mcp add --scope user fxpilot -e FXPILOT_URL=http://127.0.0.1:8765 ^
+     -- java -jar C:\path\to\fxpilot.jar
+   ```
+
+3. Ask the MCP client to call `fx_health` and then `fx_get_view`.
+
+Ready-to-copy examples are in [`examples/`](examples/): a small JavaFX demo app, MCP configurations and a replay plan.
+
 ## One-time setup
 
 1. Build the module and install it into the local Maven repository:
@@ -359,6 +378,10 @@ If the Central secrets are missing, the tag workflow succeeds and skips the Cent
 git tag -a v1.0.0 -m "FxPilot 1.0.0"
 git push origin v1.0.0
 ```
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and pull-request checklist. Security issues should be reported privately as described in [SECURITY.md](SECURITY.md).
 
 ## License
 

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "fxpilot": {
+      "command": "java",
+      "args": [
+        "-jar",
+        "C:\\path\\to\\fxpilot.jar"
+      ],
+      "env": {
+        "FXPILOT_URL": "http://127.0.0.1:8765"
+      }
+    }
+  }
+}
