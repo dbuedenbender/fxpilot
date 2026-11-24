@@ -20,6 +20,18 @@ The Maven configuration starts the app with:
 -Dfxpilot.port=8765
 ```
 
+## IntelliJ IDEA
+
+The repository contains a shared run configuration:
+
+```text
+.run/FxPilot Demo (Maven).run.xml
+```
+
+Open the project in IntelliJ and select **FxPilot Demo (Maven)** in the run-configuration dropdown, then click Run.
+
+If the configuration is not visible, import `examples/demo-app/pom.xml` as a Maven project once. IntelliJ then resolves the JavaFX dependencies and the run configuration starts `javafx:run` with the correct module path.
+
 ## Controls
 
 | Selector | Control |
