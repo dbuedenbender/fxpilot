@@ -33,14 +33,10 @@ The Maven configuration starts the app with:
 
 Try the MCP tools `fx_health`, `fx_get_view`, `fx_set_text`, `fx_click` and `fx_assert`.
 
-## Alternative: Java agent
+## Replay plan
 
-Build the main FxPilot jar, then start the demo with the agent instead:
+With the demo running, execute the included smoke test:
 
 ```bat
-java -javaagent:C:\path\to\fxpilot.jar=port=8765 ^
-  -cp "examples\demo-app\target\classes;..." ^
-  io.github.dbuedenbender.fxpilot.demo.DemoApp
+java -jar fxpilot.jar --replay examples\plans\demo-smoke.json
 ```
-
-The Maven `javafx:run` variant is simpler because it sets up the JavaFX module path.
