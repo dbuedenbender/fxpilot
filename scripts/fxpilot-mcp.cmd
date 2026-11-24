@@ -7,7 +7,7 @@ set "URL=https://repo1.maven.org/maven2/io/github/dbuedenbender/fxpilot/%FXPILOT
 
 if not exist "%CACHE_DIR%" mkdir "%CACHE_DIR%"
 if not exist "%JAR%" (
-    echo [fxpilot] downloading %URL%
+    echo [fxpilot] downloading %URL% 1>&2
     curl.exe -fL "%URL%" -o "%JAR%"
     if errorlevel 1 (
         if exist "%JAR%" del "%JAR%"
