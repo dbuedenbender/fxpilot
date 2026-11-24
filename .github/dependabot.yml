@@ -4,11 +4,34 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      maven-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "org.openjfx:javafx-controls"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.junit.jupiter:junit-jupiter"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: maven
     directory: /examples/demo-app
     schedule:
       interval: weekly
+    groups:
+      demo-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "org.openjfx:javafx-controls"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "actions/*"
+        update-types: ["version-update:semver-major"]
