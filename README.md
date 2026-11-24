@@ -352,6 +352,8 @@ The workflow `.github/workflows/release.yml` does the same for `v*` tags and ref
 | `MAVEN_GPG_PRIVATE_KEY` | ASCII-armored GPG private key |
 | `MAVEN_GPG_PASSPHRASE` | Key passphrase |
 
+If the Central secrets are missing, the tag workflow succeeds and skips the Central upload. See [docs/maven-central.md](docs/maven-central.md) for namespace verification, GPG setup, token creation and the publish step.
+
 ```bat
 git tag -a v1.0.0 -m "FxPilot 1.0.0"
 git push origin v1.0.0
