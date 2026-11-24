@@ -35,7 +35,14 @@ Requirements: JDK 11 or newer, JavaFX 11 or newer. The app only needs `javafx-co
 
 Ready-to-copy examples are in [`examples/`](examples/): a small JavaFX demo app, MCP configurations and a replay plan.
 
-If you do not want to keep the jar locally, use the launcher scripts in [`scripts/`](scripts/). They download the published jar from Maven Central into a local cache and then start the MCP server.
+On Windows, these installers automate the local setup and cache the jar under `%LOCALAPPDATA%\FxPilot`:
+
+```bat
+scripts\install-claude-desktop.cmd
+scripts\install-claude-code.cmd
+```
+
+If you do not want to keep the jar locally, use the launcher scripts in [`scripts/`](scripts/). They download the published jar from Maven Central into a local cache and then start the MCP server. Claude.ai web connectors need a remote MCP endpoint; the local launcher is for Claude Code and Claude Desktop.
 
 ## One-time setup
 
