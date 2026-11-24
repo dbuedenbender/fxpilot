@@ -27,13 +27,28 @@ jobs:
           echo "tag=${GITHUB_REF_NAME} project.version=${VERSION}"
           test "v${VERSION}" = "${GITHUB_REF_NAME}"
 
+      - name: Check Central credentials
+        id: central
+        env:
+          CENTRAL_USER: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          GPG_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$CENTRAL_USER" ] && [ -n "$GPG_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Maven Central secrets are not configured; publishing is skipped."
+          fi
+
       - name: Import GPG key
+        if: steps.central.outputs.enabled == 'true'
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
       - name: Configure Central Portal credentials
+        if: steps.central.outputs.enabled == 'true'
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -52,6 +67,11 @@ jobs:
           EOF
 
       - name: Deploy to Central Portal
+        if: steps.central.outputs.enabled == 'true'
         env:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
         run: mvn -B -Prelease deploy
+
+      - name: Central publishing skipped
+        if: steps.central.outputs.enabled != 'true'
+        run: echo "::notice::Maven Central publishing skipped because secrets are missing."
