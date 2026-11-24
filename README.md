@@ -19,7 +19,7 @@ Requirements: JDK 11 or newer, JavaFX 11 or newer. The app only needs `javafx-co
 1. Build the module and install it into the local Maven repository:
 
    ```bat
-   cd C:\tools\FxPilot
+   cd C:\path\to\fxpilot
    mvn clean install
    ```
 
@@ -28,7 +28,7 @@ Requirements: JDK 11 or newer, JavaFX 11 or newer. The app only needs `javafx-co
 2. Register the MCP server globally for Claude Code (applies to all projects):
 
    ```bat
-   claude mcp add --scope user fxpilot -e FXPILOT_URL=http://127.0.0.1:8765 -- java -jar C:\tools\FxPilot\target\fxpilot.jar
+   claude mcp add --scope user fxpilot -e FXPILOT_URL=http://127.0.0.1:8765 -- java -jar C:\path\to\fxpilot\target\fxpilot.jar
    ```
 
    If `java` is not on the PATH, give the full path to a `java.exe`. A JRE 11 or newer is enough.
@@ -86,7 +86,7 @@ The endpoint is only active with the VM option `-Dfxpilot.port=8765`. With `java
 For third-party or older apps, one VM option is enough:
 
 ```
--javaagent:C:\tools\FxPilot\target\fxpilot.jar=port=8765
+-javaagent:C:\path\to\fxpilot\target\fxpilot.jar=port=8765
 ```
 
 With a token: `=port=8765,token=secret`. Pass hints for Claude with `-Dfxpilot.notes="..."`.
