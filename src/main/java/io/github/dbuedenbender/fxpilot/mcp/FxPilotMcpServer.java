@@ -62,7 +62,7 @@ public class FxPilotMcpServer {
     /** Operations that only read state and therefore use GET (also in read-only mode). */
     private static final Set<String> EXEC_READ_OPS = Set.of(
             "clipboardGet", "propertyGet", "chart", "canvasPixel", "webQuery", "webHtml",
-            "tooltip", "idle", "tableCell");
+            "tooltip", "idle", "tableCell", "mediaStatus");
 
     private static final String BASE_URL = env("FXPILOT_URL", "http://127.0.0.1:8765").replaceAll("/+$", "");
     private static final String TOKEN = env("FXPILOT_TOKEN", "");
@@ -508,7 +508,7 @@ public class FxPilotMcpServer {
                 case "fx_web": return web(a, base);
                 case "fx_chart": return exec("chart", a, base);
                 case "fx_canvas": return canvas(a, base);
-                case "fx_media": return exec("media", a, base);
+                case "fx_media": return media(a, base);
                 case "fx_image": return exec("image", a, base);
                 case "fx_tooltip": return exec("tooltip", a, base);
                 case "fx_idle": return exec("idle", a, base);
@@ -628,6 +628,14 @@ public class FxPilotMcpServer {
             case "html": return exec("webHtml", a, base);
             default: throw new RpcError(-32602, "Unknown web action: " + action);
         }
+    }
+
+    private static Map<String, Object> media(Map<String, Object> a, String base) throws Exception {
+        String action = str(a.get("action"));
+        if (action == null) {
+            throw new RpcError(-32602, "action is required");
+        }
+        return exec("status".equalsIgnoreCase(action) ? "mediaStatus" : "media", a, base);
     }
 
     private static Map<String, Object> canvas(Map<String, Object> a, String base) throws Exception {

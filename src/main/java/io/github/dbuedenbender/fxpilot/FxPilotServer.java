@@ -54,7 +54,7 @@ public final class FxPilotServer {
     private static final int MAX_BODY_BYTES = 1 << 20;
     private static final Set<String> READ_OPS = Set.of(
             "clipboardGet", "propertyGet", "chart", "canvasPixel", "webQuery", "webHtml",
-            "tooltip", "idle", "tableCell");
+            "tooltip", "idle", "tableCell", "mediaStatus");
 
     private final HttpServer server;
     private final ExecutorService executor;

@@ -59,6 +59,7 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.Pagination;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
@@ -94,6 +95,7 @@ import javafx.util.Duration;
  * Extended operations for arbitrary JavaFX controls. These are kept separate from the core engine
  * so the small, stable endpoint API stays readable while the automation surface can grow.
  */
+@SuppressWarnings({"unchecked", "rawtypes"})
 final class FxPilotExtensions {
 
     private FxPilotExtensions() {
@@ -145,6 +147,7 @@ final class FxPilotExtensions {
             case "canvasPixel": return canvasPixel(p);
             case "canvasClick": return action(p, n -> canvasClick(n, p));
             case "media": return action(p, n -> mediaAction(n, p));
+            case "mediaStatus": return FxPilotEngine.query(() -> FxPilotEngine.info(node(p)));
             case "image": return imageAction(p);
             case "tooltip": return tooltip(p);
             case "idle": return FxPilotEngine.idle();
@@ -299,9 +302,9 @@ final class FxPilotExtensions {
                     + "', use javafx KeyCode names like ENTER, TAB, ESCAPE, DOWN");
         }
         Event.fireEvent(target, keyEvent(KeyEvent.KEY_PRESSED, code, "", mods));
-        if (code.isLetterKey() || code.isDigitKey()) {
+        if ((code.isLetterKey() || code.isDigitKey()) && !mods.control && !mods.alt && !mods.meta) {
             Event.fireEvent(target, new KeyEvent(KeyEvent.KEY_TYPED, keyName, "", KeyCode.UNDEFINED,
-                    mods.shift, mods.control, mods.alt, mods.meta));
+                    mods.shift, false, false, false));
         }
         Event.fireEvent(target, keyEvent(KeyEvent.KEY_RELEASED, code, "", mods));
     }
@@ -554,6 +557,9 @@ final class FxPilotExtensions {
     private static void textAction(Node node, String action, String value, int start, int end) {
         TextInputControl text = textInput(node);
         String name = action == null || action.isBlank() ? "clear" : action;
+        if (node instanceof PasswordField && ("copy".equalsIgnoreCase(name) || "cut".equalsIgnoreCase(name))) {
+            throw new FxPilotException(403, Codes.NODE_DENIED, "Copy/cut is disabled for PasswordField");
+        }
         switch (name) {
             case "clear": text.clear(); break;
             case "append": text.appendText(value == null ? "" : value); break;
@@ -1015,7 +1021,7 @@ final class FxPilotExtensions {
         TabPane tabs = (TabPane) node;
         String action = opt(p, "action", "select");
         Tab tab = findTab(tabs, p.get("tab"), intVal(p, "index", -1));
-        if (tab == null && !"close".equals(action)) {
+        if (tab == null) {
             throw new FxPilotException(404, Codes.TAB_NOT_FOUND, "Tab not found");
         }
         switch (action) {
@@ -1071,9 +1077,15 @@ final class FxPilotExtensions {
             throw new FxPilotException(400, Codes.UNSUPPORTED_NODE, FxPilotEngine.typeName(node) + " is not a Pagination");
         }
         Pagination pagination = (Pagination) node;
+        if (pagination.getPageCount() <= 0) {
+            throw new FxPilotException(409, Codes.INVALID_VALUE, "Pagination has no pages");
+        }
         String action = opt(p, "action", "set");
         switch (action) {
-            case "set": pagination.setCurrentPageIndex(intVal(p, "page", 0)); break;
+            case "set":
+                pagination.setCurrentPageIndex(Math.max(0,
+                        Math.min(pagination.getPageCount() - 1, intVal(p, "page", 0))));
+                break;
             case "next": pagination.setCurrentPageIndex(Math.min(pagination.getPageCount() - 1,
                     pagination.getCurrentPageIndex() + 1)); break;
             case "prev": pagination.setCurrentPageIndex(Math.max(0, pagination.getCurrentPageIndex() - 1)); break;
@@ -1114,7 +1126,8 @@ final class FxPilotExtensions {
             }
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("status", "done");
-            m.put("window", FxPilotEngine.windowInfo(0, window));
+            int index = FxPilotEngine.windows().indexOf(window);
+            m.put("window", FxPilotEngine.windowInfo(Math.max(0, index), window));
             return m;
         });
     }
@@ -1169,6 +1182,10 @@ final class FxPilotExtensions {
     }
 
     private static Object readProperty(Node node, String name) {
+        if (node instanceof PasswordField
+                && ("text".equalsIgnoreCase(name) || "selectedText".equalsIgnoreCase(name))) {
+            return "***";
+        }
         if (node.getProperties().containsKey(name)) {
             return node.getProperties().get(name);
         }
@@ -1336,6 +1353,10 @@ final class FxPilotExtensions {
             }
             int x = intVal(p, "x", 0);
             int y = intVal(p, "y", 0);
+            Canvas canvas = (Canvas) node;
+            if (x < 0 || y < 0 || x >= (int) canvas.getWidth() || y >= (int) canvas.getHeight()) {
+                throw new FxPilotException(400, Codes.INVALID_VALUE, "Canvas coordinate is outside the canvas");
+            }
             WritableImage img = node.snapshot(new SnapshotParameters(), null);
             int argb = img.getPixelReader().getArgb(x, y);
             return map("x", x, "y", y, "argb", argb,
