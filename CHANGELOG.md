@@ -13,8 +13,14 @@
 ### Changed
 
 - Updated the Central publishing plugin to `0.12.0`
+- Updated Maven compiler, surefire, jar, source, javadoc and GPG plugins
+- Updated JUnit to the latest 5.x release
 - Enforced GPG signing best practices
-- Added the Maven Central badge
+- Added the Maven Central and Javadoc badges
+
+### Fixed
+
+- Javadoc Pages deployment now uses the correct `target/reports/apidocs` output directory
 
 ## [1.0.0] - 2026-11-24
 
