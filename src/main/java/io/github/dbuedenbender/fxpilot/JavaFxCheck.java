@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.buedi.fxpilot;
+package io.github.dbuedenbender.fxpilot;
 
 /**
  * Checks the JavaFX runtime before the endpoint starts. Kept free of JavaFX references so that it can

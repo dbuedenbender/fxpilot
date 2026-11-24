@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.buedi.fxpilot;
+package io.github.dbuedenbender.fxpilot;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import io.github.buedi.fxpilot.FxPilotEngine.FxPilotException;
+import io.github.dbuedenbender.fxpilot.FxPilotEngine.FxPilotException;
 import javafx.scene.Node;
 import javafx.stage.Stage;
 import javafx.stage.Window;

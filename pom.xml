@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.buedi</groupId>
+    <groupId>io.github.dbuedenbender</groupId>
     <artifactId>fxpilot</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
@@ -96,11 +96,11 @@
                 <configuration>
                     <archive>
                         <manifestEntries>
-                            <Premain-Class>io.github.buedi.fxpilot.FxPilotAgent</Premain-Class>
-                            <Agent-Class>io.github.buedi.fxpilot.FxPilotAgent</Agent-Class>
-                            <Main-Class>io.github.buedi.fxpilot.mcp.FxPilotMcpServer</Main-Class>
+                            <Premain-Class>io.github.dbuedenbender.fxpilot.FxPilotAgent</Premain-Class>
+                            <Agent-Class>io.github.dbuedenbender.fxpilot.FxPilotAgent</Agent-Class>
+                            <Main-Class>io.github.dbuedenbender.fxpilot.mcp.FxPilotMcpServer</Main-Class>
                             <Implementation-Version>${project.version}</Implementation-Version>
-                            <Automatic-Module-Name>io.github.buedi.fxpilot</Automatic-Module-Name>
+                            <Automatic-Module-Name>io.github.dbuedenbender.fxpilot</Automatic-Module-Name>
                         </manifestEntries>
                     </archive>
                 </configuration>

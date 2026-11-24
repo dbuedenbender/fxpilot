@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.buedi.fxpilot.mcp;
+package io.github.dbuedenbender.fxpilot.mcp;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;

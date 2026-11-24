@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.buedi.fxpilot;
+package io.github.dbuedenbender.fxpilot;
 
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;

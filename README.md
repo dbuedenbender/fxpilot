@@ -23,7 +23,7 @@ Requirements: JDK 11 or newer, JavaFX 11 or newer. The app only needs `javafx-co
    mvn clean install
    ```
 
-   The jar is then in `target\fxpilot.jar` and in the local Maven repository under `io\github\buedi\fxpilot\`.
+   The jar is then in `target\fxpilot.jar` and in the local Maven repository under `io\github\dbuedenbender\fxpilot\`.
 
 2. Register the MCP server globally for Claude Code (applies to all projects):
 
@@ -41,7 +41,7 @@ Requirements: JDK 11 or newer, JavaFX 11 or newer. The app only needs `javafx-co
 
 ```xml
 <dependency>
-    <groupId>io.github.buedi</groupId>
+    <groupId>io.github.dbuedenbender</groupId>
     <artifactId>fxpilot</artifactId>
     <version>1.0.0</version>
 </dependency>
@@ -50,7 +50,7 @@ Requirements: JDK 11 or newer, JavaFX 11 or newer. The app only needs `javafx-co
 In the `Application` class:
 
 ```java
-import io.github.buedi.fxpilot.FxPilotServer;
+import io.github.dbuedenbender.fxpilot.FxPilotServer;
 
 @Override
 public void start(Stage stage) throws Exception {

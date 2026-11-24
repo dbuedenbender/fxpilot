@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.buedi.fxpilot;
+package io.github.dbuedenbender.fxpilot;
 
-import io.github.buedi.fxpilot.FxPilotEngine.FxPilotException;
+import io.github.dbuedenbender.fxpilot.FxPilotEngine.FxPilotException;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
