@@ -15,18 +15,27 @@
  */
 package io.github.dbuedenbender.fxpilot;
 
+import io.github.dbuedenbender.fxpilot.internal.TokenFiles;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FxPilotServerTest {
@@ -150,6 +159,105 @@ class FxPilotServerTest {
         assertEquals(400, r.statusCode());
         assertTrue(r.body().contains("\"code\":\"BAD_REQUEST\""));
         assertTrue(r.body().contains("parameter 'text' is required"));
+    }
+
+    /** Raw request, because HttpClient does not let callers set the Host header. */
+    private static String rawStatusLine(String request) throws Exception {
+        try (Socket socket = new Socket("127.0.0.1", FxPilotServer.port())) {
+            socket.setSoTimeout(5000);
+            socket.getOutputStream().write(request.getBytes(StandardCharsets.US_ASCII));
+            socket.getOutputStream().flush();
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = in.readLine()) != null) {
+                response.append(line).append('\n');
+            }
+            return response.toString();
+        }
+    }
+
+    @Test
+    void rejectsForeignHostHeaderAgainstDnsRebinding() throws Exception {
+        FxPilotServer.start(0, null);
+        String response = rawStatusLine("GET /does-not-exist HTTP/1.1\r\nHost: evil.example:" + FxPilotServer.port()
+                + "\r\nConnection: close\r\n\r\n");
+        assertTrue(response.startsWith("HTTP/1.1 403"), response);
+        assertTrue(response.contains("\"code\":\"HOST_REJECTED\""), response);
+    }
+
+    @Test
+    void rejectsForeignHostEvenWithTheRightToken() throws Exception {
+        FxPilotServer.start(0, "secret");
+        String response = rawStatusLine("GET /does-not-exist HTTP/1.1\r\nHost: evil.example\r\n"
+                + "X-FxPilot-Token: secret\r\nConnection: close\r\n\r\n");
+        assertTrue(response.contains("\"code\":\"HOST_REJECTED\""), response);
+    }
+
+    @Test
+    void acceptsLoopbackHostNames() throws Exception {
+        FxPilotServer.start(0, null);
+        for (String host : new String[]{"localhost", "127.0.0.1", "[::1]", "LOCALHOST"}) {
+            String response = rawStatusLine("GET /does-not-exist HTTP/1.1\r\nHost: " + host + ":" + FxPilotServer.port()
+                    + "\r\nConnection: close\r\n\r\n");
+            assertTrue(response.startsWith("HTTP/1.1 404"), host + ": " + response);
+        }
+        assertFalse(FxPilotServer.isLoopbackHost(null, 8765));
+        assertFalse(FxPilotServer.isLoopbackHost("127.0.0.1:8766", 8765));
+        assertFalse(FxPilotServer.isLoopbackHost("127.0.0.1.evil.example:8765", 8765));
+    }
+
+    @Test
+    void rejectsRequestsWithOriginHeader() throws Exception {
+        FxPilotServer.start(0, null);
+        HttpResponse<String> r = http.send(HttpRequest.newBuilder(URI.create(url("/health")))
+                .timeout(Duration.ofSeconds(5)).header("Origin", "http://evil.example").GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(403, r.statusCode());
+        assertTrue(r.body().contains("\"code\":\"ORIGIN_REJECTED\""));
+    }
+
+    @Test
+    void rejectsMethodsOtherThanGetAndPost() throws Exception {
+        FxPilotServer.start(0, null);
+        HttpResponse<String> r = http.send(HttpRequest.newBuilder(URI.create(url("/health")))
+                .timeout(Duration.ofSeconds(5)).method("OPTIONS", HttpRequest.BodyPublishers.noBody()).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(405, r.statusCode());
+        assertFalse(r.headers().firstValue("Access-Control-Allow-Origin").isPresent());
+    }
+
+    @Test
+    void autoTokenIsWrittenToTheTokenFileAndRemovedOnStop(@TempDir Path dir) throws Exception {
+        System.setProperty("fxpilot.tokenDir", dir.toString());
+        try {
+            FxPilotServer.start(0, "auto");
+            Path file = dir.resolve(FxPilotServer.port() + ".token");
+            assertTrue(Files.exists(file));
+            String token = Files.readString(file).trim();
+            assertTrue(token.length() >= 40, token);
+            assertEquals(401, get("/does-not-exist", null).statusCode());
+            assertEquals(401, get("/does-not-exist", "auto").statusCode());
+            assertEquals(404, get("/does-not-exist", token).statusCode());
+            FxPilotServer.stop();
+            assertFalse(Files.exists(file));
+        } finally {
+            System.clearProperty("fxpilot.tokenDir");
+        }
+    }
+
+    @Test
+    void tokenFileDirectoryDefaultsPerUser() {
+        String saved = System.getProperty("fxpilot.tokenDir");
+        System.clearProperty("fxpilot.tokenDir");
+        try {
+            Path dir = TokenFiles.directory();
+            assertTrue(dir.endsWith(Path.of("FxPilot", "ports")) || dir.endsWith(Path.of(".fxpilot", "ports")), dir.toString());
+        } finally {
+            if (saved != null) {
+                System.setProperty("fxpilot.tokenDir", saved);
+            }
+        }
     }
 
     @Test

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.dbuedenbender.fxpilot;
+package io.github.dbuedenbender.fxpilot.internal;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +51,14 @@ class JsonTest {
     @Test
     void writesFractionalNumbers() {
         assertEquals("3.5", Json.write(3.5));
+    }
+
+    @Test
+    void writesLargeIntegralNumbersExactly() {
+        assertEquals("9007199254740993", Json.write(9_007_199_254_740_993L));
+        assertEquals(String.valueOf(Long.MAX_VALUE), Json.write(Long.MAX_VALUE));
+        assertEquals("123456789012345678901234567890",
+                Json.write(new java.math.BigInteger("123456789012345678901234567890")));
     }
 
     @Test

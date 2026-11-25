@@ -1,47 +1,28 @@
 {
-  "fxpilot": "1.0.0",
+  "fxpilot": "1.1.0",
   "name": "demo-smoke",
   "createdAt": "2026-11-25T00:00:00Z",
   "steps": [
-    {
-      "tool": "fx_wait_for",
-      "args": {
-        "selector": "nameField",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "tool": "fx_set_text",
-      "args": {
-        "selector": "nameField",
-        "text": "Sample Inc."
-      }
-    },
-    {
-      "tool": "fx_click",
-      "args": {
-        "selector": "activeCheck"
-      }
-    },
-    {
-      "tool": "fx_click",
-      "args": {
-        "selector": "saveButton"
-      }
-    },
-    {
-      "tool": "fx_assert",
-      "args": {
-        "selector": "statusLabel",
-        "text": "Saved: Sample Inc. (active)"
-      }
-    },
-    {
-      "tool": "fx_assert",
-      "args": {
-        "selector": "customerTable",
-        "rowCount": 2
-      }
-    }
+    {"tool": "fx_wait_for", "args": {"selector": "nameField", "timeoutMs": 5000}},
+    {"tool": "fx_click", "args": {"selector": "resetButton"}},
+    {"tool": "fx_select", "args": {"selector": "mainTabs", "value": "Customers"}},
+    {"tool": "fx_set_text", "args": {"selector": "nameField", "text": "Acme Tools"}},
+    {"tool": "fx_set_text", "args": {"selector": "emailField", "text": "orders@acme.example"}},
+    {"tool": "fx_select", "args": {"selector": "countryCombo", "value": "AT"}},
+    {"tool": "fx_select", "args": {"selector": "typeChoice", "value": "Wholesale"}},
+    {"tool": "fx_set_checked", "args": {"selector": "activeCheck", "checked": true}},
+    {"tool": "fx_click", "args": {"selector": "priorityHigh"}},
+    {"tool": "fx_set_value", "args": {"selector": "creditSlider", "value": "20000"}},
+    {"tool": "fx_set_value", "args": {"selector": "discountSpinner", "value": "5"}},
+    {"tool": "fx_set_value", "args": {"selector": "sinceDate", "value": "2026-03-01"}},
+    {"tool": "fx_click", "args": {"selector": "saveButton"}},
+    {"tool": "fx_assert", "args": {"selector": "statusLabel", "text": "Saved: Acme Tools (active)"}},
+    {"tool": "fx_assert", "args": {"selector": "customerTable", "rowCount": 5}},
+    {"tool": "fx_set_text", "args": {"selector": "searchField", "text": "AT"}},
+    {"tool": "fx_assert", "args": {"selector": "customerTable", "rowCount": 2}},
+    {"tool": "fx_set_text", "args": {"selector": "searchField", "text": ""}},
+    {"tool": "fx_click", "args": {"selector": "clearButton"}},
+    {"tool": "fx_click", "args": {"selector": "saveButton"}},
+    {"tool": "fx_assert", "args": {"selector": "statusLabel", "text": "Error: name is required"}}
   ]
 }

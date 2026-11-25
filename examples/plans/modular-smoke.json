@@ -1,0 +1,20 @@
+{
+  "fxpilot": "1.1.0",
+  "name": "modular-smoke",
+  "createdAt": "2026-11-25T00:00:00Z",
+  "steps": [
+    {"tool": "fx_wait_for", "args": {"selector": "machineField", "timeoutMs": 5000}},
+    {"tool": "fx_click", "args": {"selector": "addButton"}},
+    {"tool": "fx_assert", "args": {"selector": "statusLabel", "text": "Error: machine and line are required"}},
+    {"tool": "fx_set_text", "args": {"selector": "machineField", "text": "Scale S-20"}},
+    {"tool": "fx_select", "args": {"selector": "lineCombo", "value": "Line 2"}},
+    {"tool": "fx_press_key", "args": {"selector": "machineField", "key": "ENTER"}},
+    {"tool": "fx_assert", "args": {"selector": "statusLabel", "text": "Added: Scale S-20 on Line 2"}},
+    {"tool": "fx_assert", "args": {"selector": "machineTable", "rowCount": 2}},
+    {"tool": "fx_select", "args": {"selector": "machineTable", "value": "Scale S-20 | Line 2"}},
+    {"tool": "fx_assert", "args": {"selector": "machineTable", "selectedIndex": 1}},
+    {"tool": "fx_click", "args": {"selector": "serialButton"}},
+    {"tool": "fx_assert", "args": {"selector": "statusLabel", "text": "Serial: SN-4711"}},
+    {"tool": "fx_assert", "args": {"selector": "serialButton", "property": "serial", "propertyValue": "SN-4711"}}
+  ]
+}

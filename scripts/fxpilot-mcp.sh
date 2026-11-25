@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-VERSION="${FXPILOT_VERSION:-1.0.0}"
+VERSION="${FXPILOT_VERSION:-1.1.0}"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/fxpilot"
 JAR="$CACHE_DIR/fxpilot-$VERSION.jar"
 URL="https://repo1.maven.org/maven2/io/github/dbuedenbender/fxpilot/$VERSION/fxpilot-$VERSION.jar"

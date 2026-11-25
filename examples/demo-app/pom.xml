@@ -6,17 +6,17 @@
 
     <groupId>io.github.dbuedenbender.fxpilot.examples</groupId>
     <artifactId>fxpilot-demo</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
 
     <name>FxPilot Demo</name>
-    <description>Small JavaFX application for trying FxPilot and replay plans.</description>
+    <description>"Order Desk", a JavaFX demo application for trying FxPilot, its safety settings and replay plans.</description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>11</maven.compiler.release>
-        <javafx.version>11.0.2</javafx.version>
-        <fxpilot.version>1.0.0</fxpilot.version>
+        <maven.compiler.release>17</maven.compiler.release>
+        <javafx.version>21.0.6</javafx.version>
+        <fxpilot.version>1.1.0</fxpilot.version>
     </properties>
 
     <dependencies>
@@ -52,6 +52,30 @@
                         <option>-Dfxpilot.port=8765</option>
                     </options>
                 </configuration>
+                <executions>
+                    <!-- mvn javafx:run@safe: token file, destructive controls locked, escape hatches off -->
+                    <execution>
+                        <id>safe</id>
+                        <configuration>
+                            <options>
+                                <option>-Dfxpilot.port=8765</option>
+                                <option>-Dfxpilot.token=auto</option>
+                                <option>-Dfxpilot.deny=#deleteAllButton,#resetButton,.danger</option>
+                                <option>-Dfxpilot.dangerous=false</option>
+                            </options>
+                        </configuration>
+                    </execution>
+                    <!-- mvn javafx:run@readonly: the agent may look, but not touch -->
+                    <execution>
+                        <id>readonly</id>
+                        <configuration>
+                            <options>
+                                <option>-Dfxpilot.port=8765</option>
+                                <option>-Dfxpilot.readonly=true</option>
+                            </options>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

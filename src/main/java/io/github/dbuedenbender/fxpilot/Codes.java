@@ -29,7 +29,10 @@ final class Codes {
     static final String INVALID_NUMBER = "INVALID_NUMBER";
     static final String UNAUTHORIZED = "UNAUTHORIZED";
     static final String FORBIDDEN = "FORBIDDEN";
+    static final String HOST_REJECTED = "HOST_REJECTED";
+    static final String ORIGIN_REJECTED = "ORIGIN_REJECTED";
     static final String READ_ONLY = "READ_ONLY";
+    static final String DANGEROUS_DISABLED = "DANGEROUS_DISABLED";
     static final String NODE_DENIED = "NODE_DENIED";
     static final String UNKNOWN_ENDPOINT = "UNKNOWN_ENDPOINT";
     static final String METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED";
@@ -61,6 +64,7 @@ final class Codes {
     static final String NODE_OFFSCREEN = "NODE_OFFSCREEN";
     static final String UNSUPPORTED_ACTION = "UNSUPPORTED_ACTION";
     static final String PROPERTY_NOT_FOUND = "PROPERTY_NOT_FOUND";
+    static final String PROPERTY_NOT_ACCESSIBLE = "PROPERTY_NOT_ACCESSIBLE";
     static final String WINDOW_ACTION_FAILED = "WINDOW_ACTION_FAILED";
     static final String WEB_NOT_AVAILABLE = "WEB_NOT_AVAILABLE";
     static final String CHART_NOT_FOUND = "CHART_NOT_FOUND";

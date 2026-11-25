@@ -1,0 +1,24 @@
+{
+  "fxpilot": "1.1.0",
+  "name": "demo-orders",
+  "createdAt": "2026-11-25T00:00:00Z",
+  "steps": [
+    {"tool": "fx_click", "args": {"selector": "resetButton"}},
+    {"tool": "fx_select", "args": {"selector": "mainTabs", "value": "Orders"}},
+    {"tool": "fx_set_expanded", "args": {"selector": "orderTree", "value": "Order 1001"}},
+    {"tool": "fx_assert", "args": {"selector": "orderTree", "rowCount": 5}},
+    {"tool": "fx_select", "args": {"selector": "orderTree", "value": "Order 1003"}},
+    {"tool": "fx_click", "args": {"selector": "shipButton"}},
+    {"tool": "fx_assert", "args": {"selector": "statusLabel", "text": "Shipped: Order 1003"}},
+    {"tool": "fx_click", "args": {"selector": "newOrderButton"}},
+    {"tool": "fx_wait_for_window", "args": {"title": "New order", "timeoutMs": 5000}},
+    {"tool": "fx_select", "args": {"selector": "orderCustomer", "value": "Contoso"}},
+    {"tool": "fx_set_text", "args": {"selector": "orderArticle", "text": "Scale S-20"}},
+    {"tool": "fx_set_text", "args": {"selector": "orderAmount", "text": "990"}},
+    {"tool": "fx_click", "args": {"selector": "createOrderButton"}},
+    {"tool": "fx_wait_for", "args": {"selector": "statusLabel", "text": "Created: Order 1004 for Contoso", "timeoutMs": 5000}},
+    {"tool": "fx_select", "args": {"selector": "mainTabs", "value": "Customers"}},
+    {"tool": "fx_click", "args": {"selector": "syncButton"}},
+    {"tool": "fx_wait_for", "args": {"selector": "statusLabel", "text": "Synced 4 customers", "timeoutMs": 5000}}
+  ]
+}

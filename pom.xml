@@ -4,7 +4,7 @@
 
     <groupId>io.github.dbuedenbender</groupId>
     <artifactId>fxpilot</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
 
     <name>FxPilot</name>
@@ -44,6 +44,13 @@
         <maven.compiler.release>11</maven.compiler.release>
         <javafx.version>11.0.2</javafx.version>
         <junit.version>5.14.4</junit.version>
+        <!-- The code compiles against JavaFX 11 (the minimum it supports). The headless UI tests run on a
+             newer JavaFX, because JavaFX 11 crashes in its native font code on current JDKs. -->
+        <javafx.test.version>21.0.6</javafx.test.version>
+        <monocle.version>21.0.2</monocle.version>
+        <!-- Set by jacoco:prepare-agent; extra JVM options for the tests go into surefire.jvmArgs. -->
+        <argLine></argLine>
+        <surefire.jvmArgs></surefire.jvmArgs>
     </properties>
 
     <dependencies>
@@ -82,12 +89,60 @@
                 <version>3.16.0</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.6.1</version>
+                <configuration>
+                    <argLine>@{argLine} ${surefire.jvmArgs}</argLine>
+                    <!-- Tests run on the classpath (the JavaFX test runtime and Monocle are classpath jars);
+                         McpProtocolTest starts the MCP server once on the module path to check module-info. -->
+                    <useModulePath>false</useModulePath>
+                    <classpathDependencyExcludes>
+                        <classpathDependencyExclude>org.openjfx:javafx-controls</classpathDependencyExclude>
+                        <classpathDependencyExclude>org.openjfx:javafx-graphics</classpathDependencyExclude>
+                        <classpathDependencyExclude>org.openjfx:javafx-base</classpathDependencyExclude>
+                    </classpathDependencyExcludes>
+                    <additionalClasspathDependencies>
+                        <additionalClasspathDependency>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>javafx-base</artifactId>
+                            <version>${javafx.test.version}</version>
+                            <classifier>${javafx.test.platform}</classifier>
+                        </additionalClasspathDependency>
+                        <additionalClasspathDependency>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>javafx-graphics</artifactId>
+                            <version>${javafx.test.version}</version>
+                            <classifier>${javafx.test.platform}</classifier>
+                        </additionalClasspathDependency>
+                        <additionalClasspathDependency>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>javafx-controls</artifactId>
+                            <version>${javafx.test.version}</version>
+                            <classifier>${javafx.test.platform}</classifier>
+                        </additionalClasspathDependency>
+                        <!-- Headless glass platform, so the scene-graph tests run without a display (CI). -->
+                        <additionalClasspathDependency>
+                            <groupId>org.testfx</groupId>
+                            <artifactId>openjfx-monocle</artifactId>
+                            <version>${monocle.version}</version>
+                        </additionalClasspathDependency>
+                    </additionalClasspathDependencies>
+                    <systemPropertyVariables>
+                        <glass.platform>Monocle</glass.platform>
+                        <monocle.platform>Headless</monocle.platform>
+                        <prism.order>sw</prism.order>
+                        <java.awt.headless>true</java.awt.headless>
+                        <!-- larger than the fixture window; the default 1280x800 makes Monocle's painter overflow -->
+                        <headless.geometry>1920x1200-32</headless.geometry>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -100,10 +155,52 @@
                             <Agent-Class>io.github.dbuedenbender.fxpilot.FxPilotAgent</Agent-Class>
                             <Main-Class>io.github.dbuedenbender.fxpilot.mcp.FxPilotMcpServer</Main-Class>
                             <Implementation-Version>${project.version}</Implementation-Version>
-                            <Automatic-Module-Name>io.github.dbuedenbender.fxpilot</Automatic-Module-Name>
                         </manifestEntries>
                     </archive>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.14</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <!-- Coverage gate: at least 60 % of the lines of each package (endpoint, MCP server). -->
+                    <execution>
+                        <id>check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.60</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Source jar: required by Maven Central -->
@@ -144,6 +241,28 @@
     </build>
 
     <profiles>
+        <!-- Native classifier of the JavaFX runtime used by the tests. -->
+        <profile>
+            <id>fx-test-windows</id>
+            <activation><os><family>windows</family></os></activation>
+            <properties><javafx.test.platform>win</javafx.test.platform></properties>
+        </profile>
+        <profile>
+            <id>fx-test-linux</id>
+            <activation><os><family>unix</family><name>Linux</name></os></activation>
+            <properties><javafx.test.platform>linux</javafx.test.platform></properties>
+        </profile>
+        <profile>
+            <id>fx-test-mac</id>
+            <activation><os><family>mac</family><arch>x86_64</arch></os></activation>
+            <properties><javafx.test.platform>mac</javafx.test.platform></properties>
+        </profile>
+        <profile>
+            <id>fx-test-mac-aarch64</id>
+            <activation><os><family>mac</family><arch>aarch64</arch></os></activation>
+            <properties><javafx.test.platform>mac-aarch64</javafx.test.platform></properties>
+        </profile>
+
         <!-- Release only: mvn -Prelease deploy (GPG signs artifacts, which CI must not do) -->
         <profile>
             <id>release</id>

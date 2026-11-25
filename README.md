@@ -14,15 +14,17 @@ Claude Code ──stdio/MCP──> fxpilot.jar (MCP server) ──HTTP 127.0.0.1
 
 Requirements: JDK 11 or newer, JavaFX 11 or newer. The app only needs `javafx-controls`; `javafx-web` and `javafx-swing` are optional. If JavaFX is missing or older than 11, the endpoint does not start and logs the reason to stderr. With `-javaagent`, the toolkit is usually not running yet when the agent starts, so only the presence of JavaFX is checked there.
 
-> **Modular apps:** the endpoint uses `com.sun.net.httpserver`, which lives in the `jdk.httpserver` module. Classpath launches resolve it automatically, but an app started with `--module-path` and a `module-info.java` needs `requires jdk.httpserver;` (or `--add-modules jdk.httpserver`).
+> **Modular apps:** `fxpilot.jar` is the JPMS module `io.github.dbuedenbender.fxpilot`, which exports `io.github.dbuedenbender.fxpilot` (`FxPilotServer`, `FxPilotAgent`) and `io.github.dbuedenbender.fxpilot.mcp` (`FxPilotMcpServer`). A modular app puts the jar on the module path and adds `requires io.github.dbuedenbender.fxpilot;`; the module brings `jdk.httpserver` along. If a modular app keeps FxPilot on the class path instead, start it with `--add-modules jdk.httpserver`. The package `io.github.dbuedenbender.fxpilot.internal` is shared code between endpoint and MCP server; it is not exported and not part of the API, even though its classes are public on the class path. FxPilot needs no `opens` from the app; only `fx_property` on the app's own classes needs their package exported to `io.github.dbuedenbender.fxpilot` (otherwise 403 `PROPERTY_NOT_ACCESSIBLE`). [`examples/modular-demo`](examples/modular-demo/) shows the setup.
 
 ## Quick start
 
 1. Start a JavaFX app with the agent:
 
    ```bat
-   java -javaagent:C:\path\to\fxpilot.jar=port=8765 -jar YourApp.jar
+   java -javaagent:C:\path\to\fxpilot.jar=port=8765,token=auto -jar YourApp.jar
    ```
+
+   `token=auto` generates a random token and writes it to a per-user token file, where the MCP server picks it up. Without it the endpoint runs without a token, which is fine on a single-user machine.
 
 2. Register the MCP server for Claude Code:
 
@@ -73,7 +75,7 @@ If you do not want to keep the jar locally, use the launcher scripts in [`script
 <dependency>
     <groupId>io.github.dbuedenbender</groupId>
     <artifactId>fxpilot</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
@@ -119,22 +121,36 @@ For third-party or older apps, one VM option is enough:
 -javaagent:C:\path\to\fxpilot\target\fxpilot.jar=port=8765
 ```
 
-With a token: `=port=8765,token=secret`. Pass hints for Claude with `-Dfxpilot.notes="..."`.
+With a token: `=port=8765,token=auto` (generated, see [Security](#security)) or `=port=8765,token=secret`. Pass hints for the agent with `-Dfxpilot.notes="..."`.
 
 ## Configuration
 
-| Setting                          | System property                               | Environment variable | Agent argument |
-|----------------------------------|-----------------------------------------------|----------------------|----------------|
-| Port (enables the endpoint)      | `fxpilot.port`                                | `FXPILOT_PORT`       | `port=`        |
-| Token (header `X-FxPilot-Token`) | `fxpilot.token`                               | `FXPILOT_TOKEN`      | `token=`       |
-| Hints for Claude                 | `fxpilot.notes` or `FxPilotServer.setNotes()` |                      |                |
-| Strict selectors (ambiguous = error) | `fxpilot.strictSelectors`                 | `FXPILOT_STRICT`     |                |
-| Read-only (all POSTs rejected)   | `fxpilot.readonly`                            | `FXPILOT_READONLY`   |                |
-| Denied selectors (comma list)    | `fxpilot.deny`                                | `FXPILOT_DENY`       |                |
+Endpoint (inside the app):
+
+| Setting                                    | System property                               | Environment variable | Agent argument |
+|--------------------------------------------|-----------------------------------------------|----------------------|----------------|
+| Port (enables the endpoint)                | `fxpilot.port`                                | `FXPILOT_PORT`       | `port=`        |
+| Token (header `X-FxPilot-Token`), or `auto`| `fxpilot.token`                               | `FXPILOT_TOKEN`      | `token=`       |
+| Directory of the token files               | `fxpilot.tokenDir`                            | `FXPILOT_TOKEN_DIR`  |                |
+| Hints for the agent                        | `fxpilot.notes` or `FxPilotServer.setNotes()` |                      |                |
+| Strict selectors (ambiguous = error)       | `fxpilot.strictSelectors`                     | `FXPILOT_STRICT`     |                |
+| Read-only (all POSTs rejected)             | `fxpilot.readonly`                            | `FXPILOT_READONLY`   |                |
+| Denied selectors (comma list)              | `fxpilot.deny`                                | `FXPILOT_DENY`       |                |
+| Dangerous operations (default `true`)      | `fxpilot.dangerous`                           | `FXPILOT_DANGEROUS`  |                |
+
+MCP server (`java -jar fxpilot.jar`):
+
+| Environment variable | Meaning |
+|---|---|
+| `FXPILOT_URL` | Default endpoint, `http://127.0.0.1:8765` |
+| `FXPILOT_TOKEN` | Token for the endpoint in `FXPILOT_URL`. Other ports (the `port` argument) use their token file (`token=auto`), so the token never goes to a service the client merely named. |
+| `FXPILOT_TOKEN_DIR` | Directory of the token files, same default as the endpoint |
+| `FXPILOT_TOOLS` | Tool profile: `core`, `standard` or `all` (default), see [Tool profiles](#tool-profiles) |
+| `FXPILOT_DANGEROUS` | `false` hides `fx_web`, `fx_property` and `fx_image`, rejects `fx_window` close and dangerous `fx_exec` operations, and lets the MCP server write plans, baselines and reports only below its working directory |
 
 ## Several apps at once
 
-Each app gets its own port. By default, the global MCP server talks to the port from `FXPILOT_URL`, but every tool has an optional `port` parameter. So you can tell Claude, for example: "Use the app on port 8766."
+Each app gets its own port. By default, the global MCP server talks to the port from `FXPILOT_URL`, but every tool has an optional `port` parameter. So you can tell the agent, for example: "Use the app on port 8766." With `token=auto` each app has its own token file, and the MCP server reads the one that belongs to the port.
 
 ## Tools
 
@@ -142,6 +158,7 @@ Each app gets its own port. By default, the global MCP server talks to the port 
 |---------------------------|------------------------------------------------------------------------------------|
 | `fx_health`               | Checks whether the app is reachable; returns window titles and app hints (`notes`) |
 | `fx_list_windows`         | All open windows (main window, dialogs, popups)                                    |
+| `fx_get_view`             | Compact snapshot of visible, actionable nodes with `ref` paths (valid while the scene structure stays the same); start here |
 | `fx_get_tree`             | Scene graph as JSON (fx:id, text, values, items, rows, state, position)            |
 | `fx_get_node`             | State of a single node                                                             |
 | `fx_find`                 | All nodes matching a selector, with count (for disambiguation and assertions)       |
@@ -152,7 +169,7 @@ Each app gets its own port. By default, the global MCP server talks to the port 
 | `fx_select`               | Selects an entry in a ComboBox, ChoiceBox, ListView, TableView, TreeView, TreeTableView or TabPane |
 | `fx_set_expanded`         | Expands or collapses an item in a TreeView/TreeTableView                            |
 | `fx_set_value`            | Sets a Slider, Spinner, DatePicker (`2026-11-18`) or ColorPicker (`#ff0000`)        |
-| `fx_scroll`               | Scrolls a ScrollPane, ListView, TableView or TreeView by wheel steps               |
+| `fx_scroll`               | Scrolls a ScrollPane, ListView, TableView or TreeView; each step moves 10 % of the scroll range |
 | `fx_set_checked`          | Sets a CheckBox or toggle                                                          |
 | `fx_click_menu`           | Fires a menu entry by menu and item text, without opening the popup                 |
 | `fx_screenshot`           | PNG of a window or node                                                            |
@@ -168,13 +185,28 @@ Each app gets its own port. By default, the global MCP server talks to the port 
 
 Selectors: fx:id (`textField`), CSS (`#button`, `.check-box`, `ComboBox`), `id=customer.name` for a literal fx:id (also IDs containing dots; `id=customer.name@2` picks the third match), `accessible=Save` for accessible text/help, `label=Name` for a `Label` linked with `labelFor`, `ref=VBox[0]/Button[2]` for a path returned by `fx_find`/`fx_get_tree`, `text=Save` for an exact label match (visible nodes are preferred over hidden duplicates), `text*=Sav` for a substring, or `role=button` for a JavaFX type (`button`, `textbox`, `checkbox`, `combobox`, `list`, `table`, `tree`, `tab`, `menu`, `slider`, `spinner`, `datepicker`, `label`, `image`). `within=<selector>` limits the search to a subtree, `nth=<index>` (or `nth=last`) picks a specific match. Windows can be addressed by index or `title:<text>`. Unique `fx:id`s in the FXML files make FxPilot much more reliable; `fx_get_view` returns a compact list of visible actionable nodes with stable `ref` paths for foreign UIs.
 
+### Tool profiles
+
+The tool definitions are sent with every request, and 57 of them cost context and make the choice harder for the model. `FXPILOT_TOOLS` limits what `tools/list` offers:
+
+| Profile | Tools |
+|---|---|
+| `core` | `fx_health`, `fx_list_windows`, `fx_get_view`, `fx_get_node`, `fx_find`, `fx_click`, `fx_set_text`, `fx_type`, `fx_press_key`, `fx_select`, `fx_set_value`, `fx_set_checked`, `fx_wait_for`, `fx_assert`, `fx_screenshot`, `fx_batch`, `fx_exec` |
+| `standard` | `core` plus `fx_get_tree`, `fx_hover`, `fx_set_expanded`, `fx_scroll`, `fx_scroll_to`, `fx_click_menu`, `fx_menu`, `fx_context_menu`, `fx_hotkey`, `fx_focus`, `fx_popup`, `fx_text`, `fx_selection`, `fx_table`, `fx_tree`, `fx_tab`, `fx_window`, `fx_wait_for_window`, `fx_screenshot_diff`, `fx_record_start`, `fx_record_stop`, `fx_replay`, `fx_retry`, `fx_idle` |
+| `all` (default) | every tool |
+
+`fx_exec` is part of every profile, so no operation becomes unreachable. A hidden tool called by name fails with a hint instead of running. Recorded plans replay regardless of the profile, but not past `FXPILOT_DANGEROUS=false`.
+
+Each tool carries MCP annotations: read-only tools have `readOnlyHint: true`, tools that drive the UI `destructiveHint: true` (the app may have real side effects), and all of them `openWorldHint: false`. MCP clients can use this to allow read-only tools without asking.
+
 ### Extended tools
+
+The extended tools are experimental in 1.x: their names and arguments may still change in a minor release. Everything they do is also reachable through `fx_exec`.
 
 | Tool | Purpose |
 |---|---|
-| `fx_get_view` | Compact snapshot of visible, actionable nodes with stable refs |
 | `fx_hotkey` | Key combinations such as `CTRL+S` or `CTRL+SHIFT+T` |
-| `fx_clipboard` | Read or write the system clipboard |
+| `fx_clipboard` | Read or write the system clipboard (reading counts as dangerous, it may hold other apps' data) |
 | `fx_wheel` | Real `ScrollEvent` (also for custom scroll handlers) |
 | `fx_scroll_to` | Scroll to a row/node, set ScrollPane vvalue/hvalue or ScrollBar value |
 | `fx_drag` | Synthetic node-to-node drag and drop |
@@ -192,7 +224,7 @@ Selectors: fx:id (`textField`), CSS (`#button`, `.check-box`, `ComboBox`), `id=c
 | `fx_chart` | Chart title, series and data points |
 | `fx_canvas` | Canvas pixel read and coordinate click |
 | `fx_media` | MediaView play/pause/stop/seek/volume/mute/rate |
-| `fx_image` | Save an ImageView image as PNG |
+| `fx_image` | Save an ImageView image as PNG; an existing file is only replaced with `overwrite=true` |
 | `fx_tooltip` / `fx_idle` | Read tooltips / wait for queued FX work |
 | `fx_wait_for_window` | Wait until a window with a matching title exists |
 | `fx_retry` | Retry any tool call until it succeeds |
@@ -277,7 +309,7 @@ java -jar fxpilot.jar --replay fxpilot\checkout.json --var customer="Sample Inc.
 - The `port` argument is not recorded, so one plan runs against any app instance; `--port` overrides the target for replay.
 - `fx_robot_click` and `fx_robot_drag` record absolute scene coordinates and are sensitive to window position and display scaling.
 - Default delay between steps is 300 ms. Use `--delay 0` / `delayMs: 0` only for fully synchronous UIs.
-- Plan format: `{"fxpilot":"1.0","name":"...","createdAt":"...","steps":[{"tool":"fx_click","args":{...}}]}`.
+- Plan format: `{"fxpilot":"<version>","name":"...","createdAt":"...","steps":[{"tool":"fx_click","args":{...}}]}`.
 - **Recordings contain the text you type, including passwords.** Do not record credentials and do not commit plans with sensitive data.
 
 ## Error codes
@@ -307,12 +339,15 @@ Every error response carries a stable `code` next to the human-readable message:
 | `NODE_HIDDEN` | 409 | Node is not visible in the scene graph |
 | `UNSUPPORTED_ACTION` | 400 | Operation is not possible for this control |
 | `PROPERTY_NOT_FOUND` | 404 | JavaFX property does not exist |
+| `PROPERTY_NOT_ACCESSIBLE` | 403 | Property getter of a class whose package the app's module does not export to FxPilot |
 | `WINDOW_ACTION_FAILED` | 400 | Window action is not possible (not a Stage) |
 | `WEB_NOT_AVAILABLE` | 400 | Node is not a WebView / WebView is unavailable |
 | `CHART_NOT_FOUND` / `CANVAS_NOT_FOUND` | 400 | Node is not a chart/canvas |
 | `MEDIA_NOT_AVAILABLE` / `IMAGE_NOT_FOUND` | 400 | No MediaPlayer / no image |
 | `INVALID_OPERATION` | 400 | Unknown extended operation name |
 | `READ_ONLY` / `NODE_DENIED` | 403 | Read-only mode / selector denied by `fxpilot.deny` |
+| `DANGEROUS_DISABLED` | 403 | Operation disabled by `fxpilot.dangerous=false` |
+| `HOST_REJECTED` / `ORIGIN_REJECTED` | 403 | Request not addressed to `127.0.0.1:<port>`, or sent by a web page (DNS rebinding guard) |
 | `TOOLKIT_NOT_RUNNING` | 503 | JavaFX toolkit is not running yet |
 | `FX_THREAD_TIMEOUT` | 504 | FX thread busy for more than 10 s |
 | `ACTION_FAILED` / `INTERNAL_ERROR` | 500 | Handler threw / unexpected error |
@@ -321,15 +356,15 @@ Every error response carries a stable `code` next to the human-readable message:
 
 - Without a port, no endpoint starts. Production launches are unaffected as long as the VM option is absent.
 - The endpoint binds to `127.0.0.1` only.
-- A token is optional, but recommended if other users share the machine. It is sent in `X-FxPilot-Token` and compared in constant time.
-- Without a token, every POST needs the header `X-FxPilot-Client: <anything>`. The MCP server sends it automatically; browsers cannot set it on a simple form post, so a web page cannot click buttons in your app. If you call the endpoint with curl yourself, add `-H "X-FxPilot-Client: curl"`.
+- It only answers requests whose `Host` header is `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>` and that carry no `Origin` header. Binding to loopback alone does not keep web pages out: a page on a domain that resolves to `127.0.0.1` (DNS rebinding) is same-origin with the endpoint. Browsers always send that domain in `Host`, so the check rejects them with 403 `HOST_REJECTED`. FxPilot 1.0.0 lacks this check, so update to 1.1.0 or set a token.
+- A token is optional, but recommended. `token=auto` generates a random token per start and writes it to `%LOCALAPPDATA%\FxPilot\ports\<port>.token` (Windows) or `~/.fxpilot/ports/<port>.token` (owner-only permissions on Linux and macOS); the MCP server reads it from there and the endpoint deletes it on `stop()`. The token is sent in `X-FxPilot-Token` and compared in constant time.
+- Without a token, every POST needs the header `X-FxPilot-Client: <anything>`. The MCP server sends it automatically. If you call the endpoint with curl yourself, add `-H "X-FxPilot-Client: curl"`.
 - Request bodies are limited to 1 MB.
 - Mark buttons with real side effects (printing, database, machine control) with `setNotes()` or `fxpilot.notes`. Claude reads these hints through `fx_health`; they are not a technical lock.
 - `-Dfxpilot.readonly=true` rejects every action (POST) with 403 `READ_ONLY`; queries and screenshots keep working.
-- `-Dfxpilot.deny=#deleteAll,.danger` is a real lock: actions on matching nodes or one of their ancestors fail with 403 `NODE_DENIED`. Use it instead of notes for controls that must never be driven.
-- `fx_property` and `fx_web` are powerful escape hatches: property reflection can call setters, and the WebView bridge executes JavaScript. Restrict them with `fxpilot.readonly`, a token and deny patterns in environments where that matters.
-- `fx_image` writes files and `fx_window` can close or resize windows; use a token and avoid untrusted MCP clients.
-- `PasswordField` text is redacted as `***` in node snapshots. Recorded plans still contain the text that was typed; keep them out of version control or redact them.
+- `-Dfxpilot.deny=#deleteAll,.danger,text=Wipe` is a real lock: actions on matching nodes or one of their ancestors fail with 403 `NODE_DENIED`. It also covers the indirect ways to trigger a control: keys sent to a denied focus owner, ENTER/ESCAPE when a denied button is the default/cancel button, accelerators of denied menu items in menu bars, MenuButtons and the context menus of controls, tabs and table columns, menu and context-menu items (matched by `#id`, `.styleClass` or `text=`), tabs (also by `#id`, `.styleClass` or `text=`), drag and drop, dialog buttons fired by `fx_window accept|dismiss`, and robot clicks at the coordinates of a denied node in any window at that screen position. Robot clicks outside the target window's scene, and coordinates that are not finite numbers, are always rejected (400), because the robot moves the real mouse. Scene accelerators registered as plain `Runnable`s have no target node and cannot be matched.
+- `-Dfxpilot.dangerous=false` disables the escape hatches with 403 `DANGEROUS_DISABLED`: JavaScript in a WebView (`fx_web` execute), reflective setters (`fx_property` set), file writes (`fx_image`), closing windows and tabs, and reading the system clipboard. `FXPILOT_DANGEROUS=false` on the MCP server also hides these tools. They are still allowed by default in 1.x; set `fxpilot.dangerous=false` wherever the app controls real equipment or data.
+- `PasswordField` text is never returned: node snapshots show `***`, `fx_property` reads only text-independent properties of a PasswordField (`editable`, `promptText`, `disable` ...; everything else, including custom values, gives 403 `NODE_DENIED`), `text=`/`text*=` selectors do not match it and error messages leave it out. Recorded plans still contain the text that was typed; keep them out of version control or redact them.
 - If a handler opens a modal dialog, the action returns `status: pending`. The dialog then shows up in `fx_list_windows` and can be operated normally, e.g. with `fx_click` on `text=OK`.
 
 ## What FxPilot does not do
@@ -349,7 +384,7 @@ Every error response carries a stable `code` next to the human-readable message:
 | `HTTP 503: JavaFX toolkit is not running (yet)` | The app is starting or has no FX thread yet. Wait and retry, or call `fx_health` until it answers. |
 | `Cannot reach the app at ...` | Wrong port, `-Dfxpilot.port` missing, or the app ended. |
 | Nothing listens and stderr says `JavaFX not found` | The app runs without JavaFX on the class/module path, or JavaFX is older than 11. |
-| `NoClassDefFoundError: com/sun/net/httpserver/HttpServer` | Modular app without `requires jdk.httpserver;`. |
+| `NoClassDefFoundError: com/sun/net/httpserver/HttpServer` | Modular app with FxPilot on the class path: add `--add-modules jdk.httpserver`, or put `fxpilot.jar` on the module path. |
 | Agent loads but prints "without port" | Pass `=port=8765` to `-javaagent`. |
 | `Address already in use` | Pick another port per app. |
 | `ESCAPE` does not close a dialog | Call `fx_press_key` without a selector, so the event reaches the focused node and the scene. |
@@ -361,11 +396,13 @@ TestFX drives a JavaFX app from the inside as a test library, with JUnit integra
 ## Development
 
 ```bat
-mvn test          :: unit tests, including real HTTP requests to the endpoint
-mvn clean verify  :: full build, no signing
+mvn test          :: unit, HTTP and headless UI tests
+mvn clean verify  :: full build with coverage report and gate, no signing
 mvn -Prelease deploy  :: release build, GPG-signs and uploads to the Central Portal
 java -jar fxpilot.jar --replay plan.json  :: replay a recorded plan in CI
 ```
+
+The code compiles against JavaFX 11, the oldest supported version. The UI tests start a real scene graph headless with Monocle on JavaFX 21, because JavaFX 11 crashes in its native font code on current JDKs; running the tests therefore needs JDK 17 or newer. `mvn verify` fails if the line coverage of a package drops below 60 % (JaCoCo report in `target/site/jacoco`). Extra JVM options for the tests go into `-Dsurefire.jvmArgs=...`.
 
 The MCP server is part of the jar, so `mvn verify` compiles and tests it.
 
@@ -373,7 +410,7 @@ The MCP server is part of the jar, so `mvn verify` compiles and tests it.
 
 `mvn -Prelease deploy` signs the artifacts and uploads them to the Central Portal. `autoPublish` is `false`, so review the deployment in the portal and release it there.
 
-The workflow `.github/workflows/release.yml` does the same for `v*` tags and refuses to publish when the tag (`v1.0.0`) does not match `project.version` (`1.0.0`). Required repository secrets:
+The workflow `.github/workflows/release.yml` does the same for `v*` tags and refuses to publish when the tag (`v1.1.0`) does not match `project.version` (`1.1.0`). Required repository secrets:
 
 | Secret | Purpose |
 |---|---|
@@ -385,8 +422,8 @@ The workflow `.github/workflows/release.yml` does the same for `v*` tags and ref
 If the Central secrets are missing, the tag workflow succeeds and skips the Central upload. See [docs/maven-central.md](docs/maven-central.md) for namespace verification, GPG setup, token creation and the publish step.
 
 ```bat
-git tag -a v1.0.0 -m "FxPilot 1.0.0"
-git push origin v1.0.0
+git tag -a v1.1.0 -m "FxPilot 1.1.0"
+git push origin v1.1.0
 ```
 
 ## Contributing

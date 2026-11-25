@@ -1,6 +1,6 @@
 @echo off
 setlocal
-if "%FXPILOT_VERSION%"=="" set "FXPILOT_VERSION=1.0.0"
+if "%FXPILOT_VERSION%"=="" set "FXPILOT_VERSION=1.1.0"
 set "CACHE_DIR=%LOCALAPPDATA%\FxPilot"
 set "JAR=%CACHE_DIR%\fxpilot-%FXPILOT_VERSION%.jar"
 set "URL=https://repo1.maven.org/maven2/io/github/dbuedenbender/fxpilot/%FXPILOT_VERSION%/fxpilot-%FXPILOT_VERSION%.jar"

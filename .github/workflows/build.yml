@@ -41,11 +41,13 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Build demo app
+      - name: Build the example apps and replay their plans headless
+        # installs the current fxpilot first, so the examples build against it before it is on Maven Central;
+        # runs demo-app on the class path and modular-demo on the module path (Monocle, no display needed)
         run: |
           for attempt in 1 2 3; do
-            mvn -B -f examples/demo-app/pom.xml package && exit 0
-            echo "Maven failed (attempt ${attempt}), retrying..."
+            mvn -B -DskipTests install && bash examples/replay-headless.sh && exit 0
+            echo "Examples failed (attempt ${attempt}), retrying..."
             sleep 15
           done
           exit 1

@@ -15,9 +15,9 @@
  */
 package io.github.dbuedenbender.fxpilot;
 
+import io.github.dbuedenbender.fxpilot.internal.Json;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import io.github.dbuedenbender.fxpilot.FxPilotEngine.FxPilotException;
 import javafx.scene.Node;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -42,9 +42,12 @@ import java.util.function.Consumer;
  * {@code Application.stop()}. Usage without code changes: {@code -javaagent:fxpilot.jar=port=8765}.
  *
  * <p>Disabled unless the system property {@code fxpilot.port} (or env {@code FXPILOT_PORT}) is set.
- * Binds to the loopback interface only. If {@code fxpilot.token} / {@code FXPILOT_TOKEN} is set,
- * every request must send it in the {@code X-FxPilot-Token} header. {@link #setNotes(String)} or
- * {@code -Dfxpilot.notes=...} publish application-specific hints (e.g. dangerous buttons) via /health.
+ * Binds to the loopback interface only and only answers requests whose {@code Host} header names the
+ * loopback address and that carry no {@code Origin} header, so a web page cannot reach it through DNS
+ * rebinding. If {@code fxpilot.token} / {@code FXPILOT_TOKEN} is set, every request must send it in the
+ * {@code X-FxPilot-Token} header; {@code auto} generates one and writes it to a per-user token file
+ * (see {@link TokenFile}). {@link #setNotes(String)} or {@code -Dfxpilot.notes=...} publish
+ * application-specific hints (e.g. dangerous buttons) via /health.
  */
 public final class FxPilotServer {
 
@@ -52,17 +55,16 @@ public final class FxPilotServer {
     private static volatile String notes;
 
     private static final int MAX_BODY_BYTES = 1 << 20;
-    private static final Set<String> READ_OPS = Set.of(
-            "clipboardGet", "propertyGet", "chart", "canvasPixel", "webQuery", "webHtml",
-            "tooltip", "idle", "tableCell", "mediaStatus");
 
     private final HttpServer server;
     private final ExecutorService executor;
     private final String token;
+    private final boolean tokenFile;
     private final boolean readOnly;
 
     private FxPilotServer(int port, String token) throws IOException {
-        this.token = token;
+        this.tokenFile = TokenFile.AUTO.equalsIgnoreCase(token == null ? "" : token.trim());
+        this.token = tokenFile ? TokenFile.generate() : token;
         this.readOnly = Boolean.parseBoolean(config("fxpilot.readonly", "FXPILOT_READONLY"));
         this.server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
         this.executor = Executors.newCachedThreadPool(r -> {
@@ -103,17 +105,30 @@ public final class FxPilotServer {
         }
     }
 
-    /** Starts the endpoint on 127.0.0.1:{@code port}. Does nothing if it is already running. */
+    /**
+     * Starts the endpoint on 127.0.0.1:{@code port}. Does nothing if it is already running. A {@code token}
+     * of {@code auto} generates a random token and writes it to the per-user token file for this port.
+     */
     public static synchronized void start(int port, String token) {
         if (instance != null) {
             return;
         }
         try {
             instance = new FxPilotServer(port, token);
-            FxPilotEngine.setDenyPatterns(parsePatterns(config("fxpilot.deny", "FXPILOT_DENY")));
+            DenyList.setDenyPatterns(parsePatterns(config("fxpilot.deny", "FXPILOT_DENY")));
+            String dangerous = config("fxpilot.dangerous", "FXPILOT_DANGEROUS");
+            Policy.setDangerousAllowed(dangerous == null || dangerous.isBlank() || Boolean.parseBoolean(dangerous.trim()));
             instance.startAsDaemon();
-            System.err.println("[fxpilot] listening on http://127.0.0.1:" + instance.server.getAddress().getPort());
+            int bound = instance.server.getAddress().getPort();
+            if (instance.tokenFile) {
+                System.err.println("[fxpilot] token written to " + TokenFile.write(bound, instance.token));
+            }
+            System.err.println("[fxpilot] listening on http://127.0.0.1:" + bound);
         } catch (IOException e) {
+            if (instance != null) {
+                instance.server.stop(0);
+                instance.executor.shutdownNow();
+            }
             instance = null;
             System.err.println("[fxpilot] could not start on port " + port + ": " + e);
         }
@@ -136,6 +151,9 @@ public final class FxPilotServer {
 
     public static synchronized void stop() {
         if (instance != null) {
+            if (instance.tokenFile) {
+                TokenFile.delete(instance.server.getAddress().getPort());
+            }
             instance.server.stop(0);
             instance.executor.shutdownNow();
             instance = null;
@@ -164,7 +182,12 @@ public final class FxPilotServer {
 
     private void handle(HttpExchange ex) throws IOException {
         try {
-            if (!authorized(ex)) {
+            if (!fromLoopbackClient(ex) || !authorized(ex)) {
+                return;
+            }
+            String method = ex.getRequestMethod();
+            if (!"GET".equalsIgnoreCase(method) && !"POST".equalsIgnoreCase(method)) {
+                sendJson(ex, 405, error(Codes.METHOD_NOT_ALLOWED, "only GET and POST are supported"));
                 return;
             }
             if (readOnly && isPost(ex)) {
@@ -176,128 +199,135 @@ public final class FxPilotServer {
             switch (path) {
                 case "/":
                 case "/health":
-                    sendJson(ex, 200, FxPilotEngine.query(FxPilotServer::health));
+                    sendJson(ex, 200, FxThread.query(FxPilotServer::health));
                     break;
                 case "/windows":
-                    sendJson(ex, 200, FxPilotEngine.query(FxPilotEngine::listWindows));
+                    sendJson(ex, 200, FxThread.query(NodeInfo::listWindows));
                     break;
                 case "/tree":
                     boolean full = Boolean.parseBoolean(p.get("full"));
                     int maxDepth = p.containsKey("maxDepth")
                             ? Math.max(1, Math.min(200, Integer.parseInt(p.get("maxDepth")))) : 50;
-                    sendJson(ex, 200, FxPilotEngine.query(() -> {
+                    sendJson(ex, 200, FxThread.query(() -> {
                         Node root = p.containsKey("selector")
-                                ? FxPilotEngine.find(p.get("selector"), p.get("within"), p.get("nth"))
-                                : FxPilotEngine.window(p.get("window")).getScene().getRoot();
-                        return FxPilotEngine.tree(root, full, 0, maxDepth);
+                                ? Selectors.find(p.get("selector"), p.get("within"), p.get("nth"))
+                                : Selectors.window(p.get("window")).getScene().getRoot();
+                        return NodeInfo.tree(root, full, 0, maxDepth);
                     }));
                     break;
                 case "/node":
-                    sendJson(ex, 200, FxPilotEngine.query(() -> FxPilotEngine.info(FxPilotEngine.find(p.get("selector"), p.get("within"), p.get("nth")))));
+                    sendJson(ex, 200, FxThread.query(() -> NodeInfo.info(Selectors.find(p.get("selector"), p.get("within"), p.get("nth")))));
                     break;
                 case "/matches":
                     int limit = p.containsKey("limit")
                             ? Math.max(1, Math.min(200, Integer.parseInt(p.get("limit")))) : 20;
-                    sendJson(ex, 200, FxPilotEngine.query(() -> FxPilotEngine.matches(p.get("selector"), p.get("within"), limit)));
+                    sendJson(ex, 200, FxThread.query(() -> Selectors.matches(p.get("selector"), p.get("within"), limit)));
                     break;
                 case "/view":
                     int viewDepth = p.containsKey("maxDepth")
                             ? Math.max(1, Math.min(200, Integer.parseInt(p.get("maxDepth")))) : 50;
                     int viewLimit = p.containsKey("limit")
                             ? Math.max(1, Math.min(500, Integer.parseInt(p.get("limit")))) : 200;
-                    sendJson(ex, 200, FxPilotEngine.query(() ->
-                            FxPilotEngine.view(FxPilotEngine.window(p.get("window")), viewDepth, viewLimit)));
+                    sendJson(ex, 200, FxThread.query(() ->
+                            NodeInfo.view(Selectors.window(p.get("window")), viewDepth, viewLimit)));
                     break;
                 case "/exec":
-                    String op = required(p, "op");
-                    if (!READ_OPS.contains(op)) {
+                    Operations.Operation op = Operations.get(required(p, "op"));
+                    if (op.kind != Operations.Kind.READ) {
                         requirePost(ex);
                     }
-                    sendJson(ex, 200, FxPilotExtensions.exec(op, p));
+                    if (op.kind == Operations.Kind.DANGEROUS) {
+                        Policy.requireDangerous("operation '" + op.name + "'");
+                    }
+                    sendJson(ex, 200, op.handler.apply(p));
                     break;
                 case "/click":
                     requirePost(ex);
-                    int clicks = p.containsKey("clicks") ? Integer.parseInt(p.get("clicks")) : 1;
-                    sendJson(ex, 200, action(p, n -> FxPilotEngine.click(n, clicks)));
+                    sendJson(ex, 200, InputOps.click(p));
                     break;
                 case "/hover":
                     requirePost(ex);
-                    sendJson(ex, 200, action(p, FxPilotEngine::hover));
+                    sendJson(ex, 200, action(p, Actions::hover));
                     break;
                 case "/setText":
                     requirePost(ex);
                     String text = required(p, "text");
-                    sendJson(ex, 200, action(p, n -> FxPilotEngine.setText(n, text)));
+                    sendJson(ex, 200, action(p, n -> Actions.setText(n, text)));
                     break;
                 case "/type":
                     requirePost(ex);
                     String typed = required(p, "text");
-                    sendJson(ex, 200, action(p, n -> FxPilotEngine.type(n, typed)));
+                    sendJson(ex, 200, action(p, n -> Actions.type(n, typed)));
                     break;
                 case "/key":
                     requirePost(ex);
-                    sendJson(ex, 200, pressKey(p));
+                    sendJson(ex, 200, InputOps.pressKey(p));
                     break;
                 case "/select":
                     requirePost(ex);
-                    sendJson(ex, 200, action(p, n -> FxPilotEngine.select(n, p.get("value"), p.get("index"))));
+                    sendJson(ex, 200, action(p, n -> Actions.select(n, p.get("value"), p.get("index"))));
                     break;
                 case "/value":
                     requirePost(ex);
                     String value = required(p, "value");
-                    sendJson(ex, 200, action(p, n -> FxPilotEngine.setValue(n, value)));
+                    sendJson(ex, 200, action(p, n -> Actions.setValue(n, value)));
                     break;
                 case "/expand":
                     requirePost(ex);
                     boolean expanded = !p.containsKey("expanded") || Boolean.parseBoolean(p.get("expanded"));
-                    sendJson(ex, 200, FxPilotEngine.query(() -> FxPilotEngine.setExpanded(
-                            FxPilotEngine.find(p.get("selector"), p.get("within"), p.get("nth")), p.get("value"), p.get("index"), expanded)));
+                    sendJson(ex, 200, FxThread.interact(() -> Actions.setExpanded(
+                            Selectors.find(p.get("selector"), p.get("within"), p.get("nth")), p.get("value"), p.get("index"), expanded)));
                     break;
                 case "/check":
                     requirePost(ex);
                     boolean checked = Boolean.parseBoolean(required(p, "checked"));
-                    sendJson(ex, 200, action(p, n -> FxPilotEngine.setChecked(n, checked)));
+                    sendJson(ex, 200, action(p, n -> Actions.setChecked(n, checked)));
                     break;
                 case "/scroll":
                     requirePost(ex);
-                    double amount = p.containsKey("amount") ? Double.parseDouble(p.get("amount")) : 1;
-                    sendJson(ex, 200, action(p, n -> FxPilotEngine.scroll(n, amount)));
+                    double amount = Params.doubleVal(p, "amount", 1);
+                    sendJson(ex, 200, action(p, n -> Actions.scroll(n, amount)));
                     break;
                 case "/menu":
                     requirePost(ex);
                     String menu = required(p, "menu");
-                    sendJson(ex, 200, FxPilotEngine.actionMenu(p.get("selector"), p.get("within"), p.get("nth"), menu, p.get("item")));
+                    sendJson(ex, 200, FxThread.actionMenu(p.get("selector"), p.get("within"), p.get("nth"), menu, p.get("item")));
                     break;
                 case "/robotClick":
                     requirePost(ex);
-                    double x = Double.parseDouble(required(p, "x"));
-                    double y = Double.parseDouble(required(p, "y"));
-                    FxPilotEngine.query(() -> {
-                        FxPilotEngine.robotClick(FxPilotEngine.window(p.get("window")), x, y);
+                    double x = Params.finite("x", required(p, "x"));
+                    double y = Params.finite("y", required(p, "y"));
+                    FxThread.query(() -> {
+                        Window target = Selectors.window(p.get("window"));
+                        DenyList.checkPoint(target, x, y);
+                        Actions.robotClick(target, x, y);
                         return null;
                     });
                     sendJson(ex, 200, Map.of("status", "done"));
                     break;
                 case "/robotDrag":
                     requirePost(ex);
-                    double fromX = Double.parseDouble(required(p, "x1"));
-                    double fromY = Double.parseDouble(required(p, "y1"));
-                    double toX = Double.parseDouble(required(p, "x2"));
-                    double toY = Double.parseDouble(required(p, "y2"));
-                    FxPilotEngine.query(() -> {
-                        FxPilotEngine.robotDrag(FxPilotEngine.window(p.get("window")), fromX, fromY, toX, toY);
+                    double fromX = Params.finite("x1", required(p, "x1"));
+                    double fromY = Params.finite("y1", required(p, "y1"));
+                    double toX = Params.finite("x2", required(p, "x2"));
+                    double toY = Params.finite("y2", required(p, "y2"));
+                    FxThread.query(() -> {
+                        Window target = Selectors.window(p.get("window"));
+                        DenyList.checkPoint(target, fromX, fromY);
+                        DenyList.checkPoint(target, toX, toY);
+                        Actions.robotDrag(target, fromX, fromY, toX, toY);
                         return null;
                     });
                     sendJson(ex, 200, Map.of("status", "done"));
                     break;
                 case "/screenshot":
-                    Window w = FxPilotEngine.query(() -> FxPilotEngine.window(p.get("window")));
-                    Node node = p.containsKey("selector") ? FxPilotEngine.query(() -> FxPilotEngine.find(p.get("selector"), p.get("within"), p.get("nth"))) : null;
-                    double shotX = p.containsKey("x") ? Double.parseDouble(p.get("x")) : 0;
-                    double shotY = p.containsKey("y") ? Double.parseDouble(p.get("y")) : 0;
-                    double shotWidth = p.containsKey("width") ? Double.parseDouble(p.get("width")) : -1;
-                    double shotHeight = p.containsKey("height") ? Double.parseDouble(p.get("height")) : -1;
-                    byte[] png = FxPilotEngine.screenshot(w, node, shotX, shotY, shotWidth, shotHeight);
+                    Window w = FxThread.query(() -> Selectors.window(p.get("window")));
+                    Node node = p.containsKey("selector") ? FxThread.query(() -> Selectors.find(p.get("selector"), p.get("within"), p.get("nth"))) : null;
+                    double shotX = Params.doubleVal(p, "x", 0);
+                    double shotY = Params.doubleVal(p, "y", 0);
+                    double shotWidth = Params.doubleVal(p, "width", -1);
+                    double shotHeight = Params.doubleVal(p, "height", -1);
+                    byte[] png = Screenshots.screenshot(w, node, shotX, shotY, shotWidth, shotHeight);
                     ex.getResponseHeaders().set("Content-Type", "image/png");
                     ex.sendResponseHeaders(200, png.length);
                     try (OutputStream os = ex.getResponseBody()) {
@@ -323,12 +353,12 @@ public final class FxPilotServer {
         m.put("status", "ok");
         m.put("javafx", System.getProperty("javafx.runtime.version", System.getProperty("javafx.version")));
         List<String> titles = new ArrayList<>();
-        for (Window win : FxPilotEngine.windows()) {
+        for (Window win : Selectors.windows()) {
             if (win instanceof Stage && ((Stage) win).getTitle() != null) {
                 titles.add(((Stage) win).getTitle());
             }
         }
-        m.put("windows", FxPilotEngine.windows().size());
+        m.put("windows", Selectors.windows().size());
         m.put("titles", titles);
         String n = notes != null ? notes : System.getProperty("fxpilot.notes");
         if (n != null && !n.isBlank()) {
@@ -337,26 +367,38 @@ public final class FxPilotServer {
         return m;
     }
 
-    /** Presses a key on the selector, or on the focused node / scene root when no selector is given. */
-    private static Map<String, Object> pressKey(Map<String, String> p) {
-        String key = required(p, "key");
-        return FxPilotEngine.query(() -> {
-            Window win = FxPilotEngine.window(p.get("window"));
-            String selector = p.get("selector");
-            Node target;
-            if (selector != null && !selector.isBlank()) {
-                target = FxPilotEngine.find(selector);
-            } else if (win.getScene().getFocusOwner() != null) {
-                target = win.getScene().getFocusOwner();
-            } else {
-                target = win.getScene().getRoot();
+    /**
+     * DNS rebinding guard: a page on evil.example that resolves to 127.0.0.1 is same-origin with this
+     * endpoint, so binding to loopback alone does not keep browsers out. Browsers send the page's host in
+     * {@code Host} and an {@code Origin} on POST and cross-origin requests; FxPilot clients send
+     * {@code Host: 127.0.0.1:<port>} and no {@code Origin}.
+     */
+    private boolean fromLoopbackClient(HttpExchange ex) throws IOException {
+        int port = server.getAddress().getPort();
+        String host = ex.getRequestHeaders().getFirst("Host");
+        if (!isLoopbackHost(host, port)) {
+            sendJson(ex, 403, error(Codes.HOST_REJECTED, "Host header '" + host + "' does not name this endpoint; "
+                    + "use http://127.0.0.1:" + port));
+            return false;
+        }
+        if (ex.getRequestHeaders().containsKey("Origin")) {
+            sendJson(ex, 403, error(Codes.ORIGIN_REJECTED, "requests from web pages (Origin header) are not accepted"));
+            return false;
+        }
+        return true;
+    }
+
+    static boolean isLoopbackHost(String host, int port) {
+        if (host == null) {
+            return false;
+        }
+        String h = host.trim().toLowerCase(Locale.ROOT);
+        for (String name : new String[]{"127.0.0.1", "localhost", "[::1]"}) {
+            if (h.equals(name + ":" + port) || (port == 80 && h.equals(name))) {
+                return true;
             }
-            FxPilotEngine.pressKey(target, key);
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("status", "done");
-            result.put("node", FxPilotEngine.info(target));
-            return result;
-        });
+        }
+        return false;
     }
 
     private boolean authorized(HttpExchange ex) throws IOException {
@@ -397,7 +439,7 @@ public final class FxPilotServer {
     }
 
     private static Map<String, Object> action(Map<String, String> p, Consumer<Node> action) {
-        return FxPilotEngine.action(p.get("selector"), p.get("within"), p.get("nth"),
+        return FxThread.action(p.get("selector"), p.get("within"), p.get("nth"),
                 Boolean.parseBoolean(p.get("requireVisible")),
                 Boolean.parseBoolean(p.get("requireEnabled")), action);
     }
@@ -442,7 +484,11 @@ public final class FxPilotServer {
             int eq = pair.indexOf('=');
             String k = eq < 0 ? pair : pair.substring(0, eq);
             String v = eq < 0 ? "" : pair.substring(eq + 1);
-            into.put(URLDecoder.decode(k, StandardCharsets.UTF_8), URLDecoder.decode(v, StandardCharsets.UTF_8));
+            try {
+                into.put(URLDecoder.decode(k, StandardCharsets.UTF_8), URLDecoder.decode(v, StandardCharsets.UTF_8));
+            } catch (IllegalArgumentException e) {
+                throw new FxPilotException(400, Codes.BAD_REQUEST, "malformed form encoding: " + e.getMessage());
+            }
         }
     }
 

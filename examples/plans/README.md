@@ -1,17 +1,24 @@
 # Replay plans
 
-## Demo smoke test
+## Demo plans
 
-Start the demo app first:
+| Plan | Steps |
+|---|---|
+| [`demo-smoke.json`](demo-smoke.json) | Fills the customer form with every control type (text, ComboBox, ChoiceBox, CheckBox, RadioButton, Slider, Spinner, DatePicker), saves, checks the table and the filter, then checks the validation error |
+| [`modular-smoke.json`](modular-smoke.json) | For `modular-demo`: validation error, adding a machine with ENTER, table selection, a custom control and a property read from an exported package |
+| [`demo-orders.json`](demo-orders.json) | Expands and selects in the order TreeTableView, ships an order, creates one in the modal "New order" window and waits for the background sync |
+
+Both start with `#resetButton`, so they run in any order and repeatedly. Start the demo app first (default mode, not `@safe`, where the reset button is denied):
 
 ```bat
 mvn -f examples\demo-app\pom.xml javafx:run
 ```
 
-Then replay the plan:
+Then replay the plans:
 
 ```bat
 java -jar fxpilot.jar --replay examples\plans\demo-smoke.json
+java -jar fxpilot.jar --replay examples\plans\demo-orders.json
 ```
 
 Useful CI options:
@@ -25,7 +32,7 @@ java -jar fxpilot.jar --replay examples\plans\demo-smoke.json ^
 
 ## Variables
 
-Create a copy of the plan and use placeholders:
+Create a copy of the smoke plan and replace the customer name with a placeholder in the `fx_set_text` and `fx_assert` steps:
 
 ```json
 "text": "${customer}"
@@ -34,5 +41,5 @@ Create a copy of the plan and use placeholders:
 Then run:
 
 ```bat
-java -jar fxpilot.jar --replay examples\plans\demo-smoke.json --var customer="Contoso"
+java -jar fxpilot.jar --replay my-plan.json --var customer="Contoso Ltd"
 ```

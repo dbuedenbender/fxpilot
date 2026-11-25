@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "1.1.0",
     [string]$Url = "http://127.0.0.1:8765",
     [string]$Token = ""
 )
