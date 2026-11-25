@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Minimal JSON parser and writer shared by the endpoint and the MCP server, so FxPilot needs no
@@ -42,8 +43,13 @@ public final class Json {
         }
     }
 
+    /** Keeps a pathological input from overflowing the stack in a recursive descent parser. */
+    private static final int MAX_DEPTH = 256;
+    private static final Pattern NUMBER = Pattern.compile("-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?");
+
     private final String s;
     private int i;
+    private int depth;
 
     private Json(String s) {
         this.s = s;
@@ -156,8 +162,16 @@ public final class Json {
         }
         char c = s.charAt(i);
         switch (c) {
-            case '{': return object();
-            case '[': return array();
+            case '{':
+            case '[':
+                if (++depth > MAX_DEPTH) {
+                    throw new ParseException("JSON nesting is deeper than " + MAX_DEPTH);
+                }
+                try {
+                    return c == '{' ? object() : array();
+                } finally {
+                    depth--;
+                }
             case '"': return string();
             case 't': expect("true"); return Boolean.TRUE;
             case 'f': expect("false"); return Boolean.FALSE;
@@ -226,6 +240,9 @@ public final class Json {
                 return sb.toString();
             }
             if (c != '\\') {
+                if (c < 0x20) {
+                    throw new ParseException("unescaped control character in JSON string");
+                }
                 sb.append(c);
                 continue;
             }
@@ -254,8 +271,15 @@ public final class Json {
             throw new ParseException("unexpected character '" + s.charAt(i) + "'");
         }
         String n = s.substring(start, i);
+        if (!NUMBER.matcher(n).matches()) {
+            throw new ParseException("invalid number '" + n + "'");
+        }
         if (n.contains(".") || n.contains("e") || n.contains("E")) {
-            return Double.parseDouble(n);
+            double d = Double.parseDouble(n);
+            if (!Double.isFinite(d)) {
+                throw new ParseException("number out of range '" + n + "'");
+            }
+            return d;
         }
         return Long.parseLong(n);
     }

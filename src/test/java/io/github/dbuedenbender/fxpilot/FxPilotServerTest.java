@@ -77,6 +77,14 @@ class FxPilotServerTest {
     }
 
     @Test
+    void rejectsAnOutOfRangePortWithoutStarting() {
+        FxPilotServer.start(70000, null);
+        assertFalse(FxPilotServer.isRunning());
+        FxPilotServer.start(-1, null);
+        assertFalse(FxPilotServer.isRunning());
+    }
+
+    @Test
     void rejectsRequestsWithoutOrWithWrongToken() throws Exception {
         FxPilotServer.start(0, "secret");
         HttpResponse<String> missing = get("/health", null);

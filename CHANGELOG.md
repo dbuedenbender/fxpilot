@@ -65,6 +65,11 @@
 - DatePicker and ColorPicker fired `onAction` twice on `fx_set_value`.
 - Malformed CSS selectors (`.`, `#`) gave HTTP 500 or matched the root node; `tableCell` on a missing row returned `null`; `window=title:` without text matched the first window.
 - An action that returned `pending` and failed later lost its error; it is now logged.
+- An out-of-range `fxpilot.port` (system property, environment or agent argument) was an uncaught `IllegalArgumentException` that could abort application startup; it is now rejected with a log message.
+- `--replay` printed a stack trace for malformed plan JSON or plan structure; it now exits 2 with a message. The JSON parser rejects invalid numbers (`+1`, `01`, `.5`, `1.`, `1e309`) and deeply nested input instead of accepting or overflowing it.
+- `FXPILOT_DANGEROUS=false` now also blocks `fx_exec` WebView queries, HTML reads and clicks, which execute JavaScript; previously only `fx_web`/`webExecute` were covered.
+- `FXPILOT_TOKEN` was not sent when `FXPILOT_URL` used a loopback alias (`localhost`, `[::1]`) and a tool passed the same port; loopback aliases now count as the same endpoint.
+- `fx_hotkey` silently ignored unknown modifiers (`CTLR+S` pressed `S`); unknown modifiers are now rejected with `INVALID_KEY`.
 - Bad input gave HTTP 500: `fx_hotkey keys=+`, non-numeric indices and malformed form encoding now return 400.
 - `/key` (`fx_press_key`) ignored `within`/`nth` and modifiers on the plain endpoint; `/key` and `/click` now use the same implementation as `fx_press_key` and `fx_click`.
 - A replayed plan that calls `fx_replay` failed with a StackOverflowError that stopped the MCP server; nested replays are rejected. `fx_retry delayMs` is capped at 10 s.

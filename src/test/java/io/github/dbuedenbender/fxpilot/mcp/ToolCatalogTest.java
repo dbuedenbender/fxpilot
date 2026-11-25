@@ -125,6 +125,9 @@ class ToolCatalogTest {
         assertTrue(names.contains("fx_window"));
         assertTrue(Results.textOf(ToolCatalog.callTool("fx_web", Map.of("action", "execute"))).contains("FXPILOT_DANGEROUS"));
         assertNotNull(ToolCatalog.blockedByPolicy("fx_exec", Map.of("op", "webExecute")));
+        assertNotNull(ToolCatalog.blockedByPolicy("fx_exec", Map.of("op", "webQuery")));
+        assertNotNull(ToolCatalog.blockedByPolicy("fx_exec", Map.of("op", "webHtml")));
+        assertNotNull(ToolCatalog.blockedByPolicy("fx_exec", Map.of("op", "webClick")));
         assertNotNull(ToolCatalog.blockedByPolicy("fx_exec", Map.of("op", "propertySet")));
         assertNotNull(ToolCatalog.blockedByPolicy("fx_window", Map.of("action", "close")));
         assertNotNull(ToolCatalog.blockedByPolicy("fx_exec", Map.of("op", "window", "args", Map.of("action", "close"))));

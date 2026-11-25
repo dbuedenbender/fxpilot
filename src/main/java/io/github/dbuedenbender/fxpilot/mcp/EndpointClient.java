@@ -65,7 +65,7 @@ final class EndpointClient {
      * token is never sent to an unrelated service that happens to listen on a port a client named.
      */
     static String token(String base) {
-        if (!TOKEN.isEmpty() && base.equals(BASE_URL)) {
+        if (!TOKEN.isEmpty() && sameEndpoint(base, BASE_URL)) {
             return TOKEN;
         }
         int port = URI.create(base).getPort();
@@ -80,6 +80,43 @@ final class EndpointClient {
         }
     }
 
+
+    /**
+     * True when two base URLs name the same endpoint. Loopback aliases (127.0.0.1, localhost, [::1]) are
+     * equivalent, so a tool that passes the port of {@code FXPILOT_URL} still gets the configured token.
+     */
+    static boolean sameEndpoint(String first, String second) {
+        if (first == null || second == null) {
+            return false;
+        }
+        try {
+            URI a = URI.create(first);
+            URI b = URI.create(second);
+            if (a.getScheme() == null || b.getScheme() == null || a.getHost() == null || b.getHost() == null
+                    || !a.getScheme().equalsIgnoreCase(b.getScheme())) {
+                return false;
+            }
+            if (port(a) != port(b)) {
+                return false;
+            }
+            return a.getHost().equalsIgnoreCase(b.getHost())
+                    || isLoopback(a.getHost()) && isLoopback(b.getHost());
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private static int port(URI uri) {
+        if (uri.getPort() >= 0) {
+            return uri.getPort();
+        }
+        return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : "http".equalsIgnoreCase(uri.getScheme()) ? 80 : -1;
+    }
+
+    private static boolean isLoopback(String host) {
+        return "127.0.0.1".equals(host) || "localhost".equalsIgnoreCase(host)
+                || "[::1]".equals(host) || "::1".equals(host);
+    }
 
     /** Default endpoint, or 127.0.0.1 on the port passed by the caller (for several apps at once). */
     static String baseUrl(Object port) {

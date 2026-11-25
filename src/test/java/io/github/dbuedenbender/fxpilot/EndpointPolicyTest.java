@@ -40,6 +40,11 @@ class EndpointPolicyTest {
                     "DANGEROUS_DISABLED");
             assertError(post("/exec", "op", "image", "selector", "nameField", "file", "x.png"), 403,
                     "DANGEROUS_DISABLED");
+            assertError(get("/exec", "op", "webQuery", "selector", "okButton", "css", "body"), 403,
+                    "DANGEROUS_DISABLED");
+            assertError(get("/exec", "op", "webHtml", "selector", "okButton"), 403, "DANGEROUS_DISABLED");
+            assertError(post("/exec", "op", "webClick", "selector", "okButton", "css", "body"), 403,
+                    "DANGEROUS_DISABLED");
             assertError(post("/exec", "op", "window", "action", "close"), 403, "DANGEROUS_DISABLED");
             assertError(post("/exec", "op", "tab", "selector", "tabs", "tab", "Closable", "action", "close"), 403,
                     "DANGEROUS_DISABLED");

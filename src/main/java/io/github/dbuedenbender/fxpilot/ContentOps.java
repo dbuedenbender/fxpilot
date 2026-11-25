@@ -57,6 +57,7 @@ final class ContentOps {
     }
 
     static Map<String, Object> webQuery(Map<String, String> p) {
+        Policy.requireDangerous("WebView JavaScript");
         return FxThread.query(() -> {
             Node node = Params.node(p);
             Object engine = webEngine(node);
@@ -72,12 +73,14 @@ final class ContentOps {
     }
 
     static void webClick(Node node, String css) {
+        Policy.requireDangerous("WebView JavaScript");
         Object engine = webEngine(node);
         Reflect.invoke(engine, "executeScript",
                 "(function(){var e=document.querySelector(" + jsString(css) + ");if(e)e.click();})()");
     }
 
     static Map<String, Object> webHtml(Map<String, String> p) {
+        Policy.requireDangerous("WebView JavaScript");
         return FxThread.query(() -> {
             Node node = Params.node(p);
             Object engine = webEngine(node);

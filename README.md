@@ -52,11 +52,11 @@ If you do not want to keep the jar locally, use the launcher scripts in [`script
 
    ```bat
    cd C:\path\to\fxpilot
-   mvn clean install
+   mvn -DskipTests clean install
    ```
 
    The jar is then in `target\fxpilot.jar` and in the local Maven repository under `io\github\dbuedenbender\fxpilot\`.
-   The test suite needs JDK 21 (see [Development](#development)); on JDK 17 use `mvn -DskipTests clean install`.
+   This installs without running the tests. The test suite needs JDK 21 (see [Development](#development)); set `JAVA_HOME` to a JDK 21 and run `mvn verify` to execute it.
 
 2. Register the MCP server globally for Claude Code (applies to all projects):
 

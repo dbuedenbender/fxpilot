@@ -178,6 +178,14 @@ class RecorderReplayTest {
     }
 
     @Test
+    void replayMainRejectsMalformedPlansWithACleanExitCode() throws Exception {
+        assertEquals(2, Recorder.replayMain(new String[]{
+                "--replay", write("bad-shape.json", "{\"steps\":[1]}").toString()}));
+        assertEquals(2, Recorder.replayMain(new String[]{
+                "--replay", write("bad-json.json", "{not json").toString()}));
+    }
+
+    @Test
     void replayMainRejectsBadArguments() throws Exception {
         assertEquals(2, Recorder.replayMain(new String[]{"--replay"}));
         assertEquals(2, Recorder.replayMain(new String[]{"--replay", "plan.json", "--var", "invalid"}));

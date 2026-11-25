@@ -571,6 +571,10 @@ final class Recorder {
         } catch (ToolError e) {
             System.err.println(e.getMessage());
             return 2;
+        } catch (Exception e) {
+            // Malformed plan JSON/structure and I/O errors should be a clean CLI error, not a stack trace.
+            System.err.println("Replay failed: " + e.getMessage());
+            return 2;
         }
         System.out.println(Results.textOf(result));
         return Boolean.TRUE.equals(result.get("isError")) ? 1 : 0;

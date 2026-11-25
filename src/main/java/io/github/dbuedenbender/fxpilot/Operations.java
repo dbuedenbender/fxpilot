@@ -92,7 +92,10 @@ final class Operations {
         dangerous("propertySet", PropertyOps::propertySet);
         dangerous("webExecute", ContentOps::webExecute);
         read("webQuery", ContentOps::webQuery);
-        write("webClick", p -> action(p, n -> ContentOps.webClick(n, req(p, "css"))));
+        write("webClick", p -> {
+            Policy.requireDangerous("WebView JavaScript");
+            return action(p, n -> ContentOps.webClick(n, req(p, "css")));
+        });
         read("webHtml", ContentOps::webHtml);
         read("chart", ContentOps::chartData);
         read("canvasPixel", ContentOps::canvasPixel);

@@ -113,6 +113,10 @@ public final class FxPilotServer {
         if (instance != null) {
             return;
         }
+        if (port < 0 || port > 65535) {
+            System.err.println("[fxpilot] invalid port '" + port + "' (must be 0..65535)");
+            return;
+        }
         try {
             instance = new FxPilotServer(port, token);
             DenyList.setDenyPatterns(parsePatterns(config("fxpilot.deny", "FXPILOT_DENY")));
@@ -124,7 +128,7 @@ public final class FxPilotServer {
                 System.err.println("[fxpilot] token written to " + TokenFile.write(bound, instance.token));
             }
             System.err.println("[fxpilot] listening on http://127.0.0.1:" + bound);
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
             if (instance != null) {
                 instance.server.stop(0);
                 instance.executor.shutdownNow();

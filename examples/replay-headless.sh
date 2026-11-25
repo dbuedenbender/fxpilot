@@ -2,7 +2,7 @@
 # Starts both example apps headless (Monocle) and replays their plans against them.
 #   demo-app       classpath, FxPilot as a library dependency
 #   modular-demo   module path, FxPilot as a JPMS module ("requires io.github.dbuedenbender.fxpilot")
-# Needs the current FxPilot installed (mvn -DskipTests install) and JDK 17+. Used by CI; runs locally too.
+# Needs the current FxPilot installed (mvn -DskipTests install) and JDK 21+ (Monocle 21). Used by CI; runs locally too.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

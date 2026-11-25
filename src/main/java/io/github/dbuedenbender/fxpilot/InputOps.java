@@ -80,7 +80,9 @@ final class InputOps {
                 case "CTRL": case "CONTROL": control = true; break;
                 case "ALT": alt = true; break;
                 case "META": case "CMD": case "COMMAND": case "WIN": meta = true; break;
-                default: break;
+                default:
+                    throw new FxPilotException(400, Codes.INVALID_KEY, "Unknown modifier '" + part
+                            + "', use SHIFT, CTRL, ALT or META");
             }
         }
         return new Modifiers(shift, control, alt, meta);
@@ -107,6 +109,9 @@ final class InputOps {
 
     static Map<String, Object> hotkey(Map<String, String> p) {
         String combo = Params.req(p, "keys");
+        if (combo.trim().endsWith("+")) {
+            throw new FxPilotException(400, Codes.INVALID_KEY, "keys '" + combo + "' names no key, use e.g. CTRL+S");
+        }
         String[] parts = combo.split("\\+");
         if (parts.length == 0 || parts[parts.length - 1].isBlank()) {
             throw new FxPilotException(400, Codes.INVALID_KEY, "keys '" + combo + "' names no key, use e.g. CTRL+S");

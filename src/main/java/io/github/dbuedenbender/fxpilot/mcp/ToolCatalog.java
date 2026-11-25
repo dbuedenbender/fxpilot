@@ -72,6 +72,9 @@ final class ToolCatalog {
     /** Endpoint operations that {@code FXPILOT_DANGEROUS=false} rejects, like {@code fxpilot.dangerous} on the endpoint. */
     static final Set<String> DANGEROUS_OPS = Set.of("propertySet", "webExecute", "image");
 
+    /** WebView operations that execute JavaScript but are classified as read/write on the endpoint. */
+    private static final Set<String> WEB_SCRIPT_OPS = Set.of("webQuery", "webHtml", "webClick");
+
     private static final Map<String, Entry> ENTRIES = new LinkedHashMap<>();
 
     static {
@@ -577,7 +580,8 @@ final class ToolCatalog {
                         || "fx_exec".equals(name) && ("window".equals(op) || "tab".equals(op)));
         boolean readsClipboard = "fx_clipboard".equals(name) && !"set".equalsIgnoreCase(action)
                 || "fx_exec".equals(name) && "clipboardGet".equals(op);
-        boolean blocked = "fx_exec".equals(name) && DANGEROUS_OPS.contains(op) || closes || readsClipboard;
+        boolean blocked = "fx_exec".equals(name) && (DANGEROUS_OPS.contains(op) || WEB_SCRIPT_OPS.contains(op))
+                || closes || readsClipboard;
         return blocked ? name + (op == null ? "" : " op=" + op) + (action == null ? "" : " action=" + action)
                 + " is disabled (FXPILOT_DANGEROUS=false)" : null;
     }

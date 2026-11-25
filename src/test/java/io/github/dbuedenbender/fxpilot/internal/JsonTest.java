@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class JsonTest {
 
@@ -94,6 +95,33 @@ class JsonTest {
         map.put("items", Arrays.asList("a", null));
         map.put("ok", true);
         assertEquals("{\"items\":[\"a\",null],\"ok\":true}", Json.write(map));
+    }
+
+    @Test
+    void parsesValidNumbers() {
+        assertEquals(1L, Json.parse("1"));
+        assertEquals(-1L, Json.parse("-1"));
+        assertEquals(1.5, Json.parse("1.5"));
+        assertEquals(100.0, Json.parse("1e2"));
+        assertEquals(0.01, Json.parse("1e-2"));
+    }
+
+    @Test
+    void rejectsInvalidNumbers() {
+        for (String invalid : List.of("+1", "01", "-01", ".5", "1.", "1e", "1e+", "1e309", "-1e309", "--1")) {
+            assertThrows(Json.ParseException.class, () -> Json.parse(invalid), invalid);
+        }
+    }
+
+    @Test
+    void rejectsUnescapedControlCharactersInStrings() {
+        assertThrows(Json.ParseException.class, () -> Json.parse("\"\u0001\""));
+    }
+
+    @Test
+    void rejectsDeeplyNestedInput() {
+        String deep = "[".repeat(300) + "0" + "]".repeat(300);
+        assertThrows(Json.ParseException.class, () -> Json.parse(deep));
     }
 
     @Test
