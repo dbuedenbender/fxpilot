@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0] - Unreleased
+## [1.1.0] - 2026-11-25
 
 ### Security
 
@@ -38,6 +38,9 @@
 - `fxpilot.jar` is a named JPMS module (`io.github.dbuedenbender.fxpilot`, with `module-info.java` instead of `Automatic-Module-Name`). It exports the two API packages; the new package `...fxpilot.internal` holds the JSON code and the token-file location that endpoint and MCP server used to keep as separate copies, and is not exported. Class-path use (`-javaagent`, `java -jar`, Maven dependency) is unchanged.
 - `tableCell` on a TreeTableView returns the column text in `column`, like on a TableView (was the index).
 - The extended tools are marked experimental for 1.x.
+- The compiler runs with `-Xlint:all -Werror`, so a warning fails the build. CI builds the library on JDK 17 and runs the full test suite on JDK 21, matching the JDK 21 requirement of the Monocle-based UI tests.
+- The JavaFX test runtime is 21.0.6, which also removes the Maven model warning emitted by the OpenJFX 21.0.2 POM.
+- Added tests for MCP stdio protocol errors, tool argument validation and replay failure handling; the MCP package now has a 75 % line coverage gate.
 - Updated the Central publishing plugin to `0.12.0`
 - Updated Maven compiler, surefire, jar, source, javadoc and GPG plugins
 - Updated JUnit to the latest 5.x release

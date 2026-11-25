@@ -6,11 +6,14 @@ Thanks for helping improve FxPilot.
 
 Requirements:
 
-- JDK 17 or newer to run the tests (the library itself targets JDK 11)
+- JDK 21 to run the tests (the library itself targets JDK 11)
+- JDK 17 is enough to build/package the library
 - Maven 3.8 or newer
 - JavaFX 11 or newer for running examples
 
-The UI tests run headless with Monocle on JavaFX 21; nothing has to be installed for that. `mvn verify` fails when the line coverage of a package drops below 60 %.
+The UI tests run headless with Monocle on JavaFX 21; nothing has to be installed for that. Monocle 21 is compiled for Java 21, so `mvn verify` on JDK 17 fails with `UnsupportedClassVersionError`. Point `JAVA_HOME` at a JDK 21, or use `mvn -DskipTests clean package` on JDK 17. CI does both: `package` on JDK 17 and `verify` on JDK 21.
+
+The compiler runs with `-Xlint:all -Werror`; warnings fail the build. `mvn verify` fails when the line coverage of a package drops below 60 % (75 % for the MCP package).
 
 Build and test:
 

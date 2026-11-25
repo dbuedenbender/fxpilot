@@ -30,6 +30,24 @@ FxPilot is designed for local development and test automation:
 - `fxpilot.dangerous=false` disables WebView JavaScript, reflective setters, image file writes, closing windows and tabs, and reading the system clipboard. These are allowed by default in 1.x and will be opt-in in 2.0. `FXPILOT_DANGEROUS=false` on the MCP server also hides these tools and restricts the files it writes (plans, baselines, reports) to its working directory.
 - Request bodies are limited to 1 MB.
 
+## Threat model and secure defaults
+
+Trusted: the local user, the MCP client that user configured, and the app being driven.
+
+Untrusted: web pages, other local users, network peers, and replay plans or baseline images received from elsewhere. FxPilot is not a sandbox: a client that can call tools has the same power over the app as the user running it, including file writes and real mouse and keyboard input. Grant that power deliberately.
+
+Defaults in 1.x:
+
+| Setting | Default | Recommendation |
+|---|---|---|
+| bind address | `127.0.0.1` only | never expose it; reverse proxies are rejected by the `Host` check |
+| endpoint token | none | `token=auto` when other users share the machine |
+| `fxpilot.readonly` | `false` | `true` for inspection-only sessions |
+| `fxpilot.dangerous` | `true` (opt-in in 2.0) | `false` unless the session needs it |
+| `FXPILOT_TOOLS` | `all` | `core` or `standard` for small or less trusted clients |
+| `FXPILOT_DANGEROUS` | `true` | `false` when replaying plans from elsewhere |
+| request body | 1 MB | keep the endpoint local |
+
 ## Powerful operations
 
 These operations are intentionally powerful and should only be available to trusted MCP clients. `fxpilot.dangerous=false` (and `FXPILOT_DANGEROUS=false` on the MCP server) turns off property setters, WebView JavaScript, image file writes and closing windows:

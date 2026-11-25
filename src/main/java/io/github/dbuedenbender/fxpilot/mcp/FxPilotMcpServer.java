@@ -37,7 +37,6 @@ public final class FxPilotMcpServer {
     /** Protocol versions this server implements, newest first. */
     static final List<String> SUPPORTED_PROTOCOLS = List.of("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05");
     static final String VERSION = serverVersion();
-    private static PrintStream out;
 
     private FxPilotMcpServer() {
     }
@@ -46,9 +45,13 @@ public final class FxPilotMcpServer {
         if (args.length > 0 && ("--replay".equals(args[0]) || "-r".equals(args[0]))) {
             System.exit(Recorder.replayMain(args));
         }
-        out = new PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out), true, "UTF-8");
+        PrintStream out = new PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out), true, "UTF-8");
         System.setOut(System.err);
-        BufferedReader in = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+        serve(new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)), out);
+    }
+
+    /** Reads JSON-RPC lines from {@code in} until EOF and writes replies to {@code out}. */
+    static void serve(BufferedReader in, PrintStream out) throws Exception {
         String line;
         while ((line = in.readLine()) != null) {
             if (line.isBlank()) {
@@ -63,14 +66,14 @@ public final class FxPilotMcpServer {
                     continue; // notification or response
                 }
                 Map<String, Object> params = msg.get("params") == null ? Map.of() : Results.asMap(msg.get("params"));
-                reply(id, dispatch(method, params));
+                reply(out, id, dispatch(method, params));
             } catch (RpcError e) {
-                replyError(id, e.code, e.getMessage());
+                replyError(out, id, e.code, e.getMessage());
             } catch (Json.ParseException e) {
-                replyError(id, -32700, "Parse error: " + e.getMessage());
+                replyError(out, id, -32700, "Parse error: " + e.getMessage());
             } catch (Exception | StackOverflowError e) {
                 // a StackOverflowError (e.g. from a pathological plan) must not end the server
-                replyError(id, -32603, e.toString());
+                replyError(out, id, -32603, e.toString());
             }
         }
     }
@@ -123,7 +126,7 @@ public final class FxPilotMcpServer {
         return v != null && SUPPORTED_PROTOCOLS.contains(v) ? v : SUPPORTED_PROTOCOLS.get(0);
     }
 
-    private static void reply(Object id, Object result) {
+    private static void reply(PrintStream out, Object id, Object result) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("jsonrpc", "2.0");
         m.put("id", id);
@@ -131,7 +134,7 @@ public final class FxPilotMcpServer {
         out.println(Json.write(m));
     }
 
-    private static void replyError(Object id, int code, String message) {
+    private static void replyError(PrintStream out, Object id, int code, String message) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("jsonrpc", "2.0");
         m.put("id", id);

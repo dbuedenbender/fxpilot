@@ -56,6 +56,7 @@ If you do not want to keep the jar locally, use the launcher scripts in [`script
    ```
 
    The jar is then in `target\fxpilot.jar` and in the local Maven repository under `io\github\dbuedenbender\fxpilot\`.
+   The test suite needs JDK 21 (see [Development](#development)); on JDK 17 use `mvn -DskipTests clean install`.
 
 2. Register the MCP server globally for Claude Code (applies to all projects):
 
@@ -402,7 +403,9 @@ mvn -Prelease deploy  :: release build, GPG-signs and uploads to the Central Por
 java -jar fxpilot.jar --replay plan.json  :: replay a recorded plan in CI
 ```
 
-The code compiles against JavaFX 11, the oldest supported version. The UI tests start a real scene graph headless with Monocle on JavaFX 21, because JavaFX 11 crashes in its native font code on current JDKs; running the tests therefore needs JDK 17 or newer. `mvn verify` fails if the line coverage of a package drops below 60 % (JaCoCo report in `target/site/jacoco`). Extra JVM options for the tests go into `-Dsurefire.jvmArgs=...`.
+The code compiles against JavaFX 11, the oldest supported version. The UI tests start a real scene graph headless with Monocle on JavaFX 21, because JavaFX 11 crashes in its native font code on current JDKs; running the tests therefore needs **JDK 21**. CI builds the library with JDK 17 (`-DskipTests clean package`) and runs the full suite with JDK 21, so both cases stay covered. On a JDK 17 machine set `JAVA_HOME` to a JDK 21 for `mvn verify`; otherwise the UI tests fail with `UnsupportedClassVersionError`.
+
+The compiler runs with `-Xlint:all -Werror`, so a warning fails the build; fix warnings instead of suppressing them. `mvn verify` fails if the line coverage of a package drops below 60 % (75 % for the MCP package; JaCoCo report in `target/site/jacoco`). Extra JVM options for the tests go into `-Dsurefire.jvmArgs=...`.
 
 The MCP server is part of the jar, so `mvn verify` compiles and tests it.
 

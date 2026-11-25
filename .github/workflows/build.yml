@@ -12,10 +12,17 @@ permissions:
 
 jobs:
   build:
+    name: build (JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [ '17', '21' ]
+        include:
+          # The library targets JDK 11 and must still build on the oldest LTS we support.
+          - java: '17'
+            goal: '-DskipTests clean package'
+          # The headless UI tests use JavaFX 21 and Monocle 21, which need JDK 21.
+          - java: '21'
+            goal: 'clean verify'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
@@ -23,10 +30,10 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
-      - name: Build and test
+      - name: Maven ${{ matrix.goal }}
         run: |
           for attempt in 1 2 3; do
-            mvn -B clean verify && exit 0
+            mvn -B ${{ matrix.goal }} && exit 0
             echo "Maven failed (attempt ${attempt}), retrying..."
             sleep 15
           done

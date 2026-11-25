@@ -91,6 +91,7 @@
                     <release>${maven.compiler.release}</release>
                     <compilerArgs>
                         <arg>-Xlint:all</arg>
+                        <arg>-Werror</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
@@ -194,6 +195,20 @@
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
                                             <minimum>0.60</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <!-- The MCP server is the main API surface for agents; keep it above 75 %. -->
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <includes>
+                                        <include>io.github.dbuedenbender.fxpilot.mcp</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.75</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
