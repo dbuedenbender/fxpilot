@@ -27,9 +27,11 @@ jobs:
           cache: maven
 
       - name: Generate Javadoc
+        # On a clean checkout the modular project needs compiled classes (module-info.class)
+        # before javadoc:javadoc can build the report; otherwise the plugin sees mixed modules.
         run: |
           for attempt in 1 2 3; do
-            mvn -B javadoc:javadoc && exit 0
+            mvn -B -DskipTests compile javadoc:javadoc && exit 0
             echo "Maven failed (attempt ${attempt}), retrying..."
             sleep 15
           done
