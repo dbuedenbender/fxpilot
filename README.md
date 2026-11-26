@@ -419,7 +419,7 @@ java -jar fxpilot.jar --replay plan.json  :: replay a recorded plan in CI
 
 The code compiles against JavaFX 11, the oldest supported version. The UI tests start a real scene graph headless with Monocle on JavaFX 21, because JavaFX 11 crashes in its native font code on current JDKs; running the tests therefore needs **JDK 21**. CI builds the library with JDK 17 (`-DskipTests clean package`) and runs the full suite with JDK 21, so both cases stay covered. On a JDK 17 machine set `JAVA_HOME` to a JDK 21 for `mvnw.cmd verify`; otherwise the UI tests fail with `UnsupportedClassVersionError`.
 
-The compiler runs with `-Werror` and an explicit list of `-Xlint` categories (see `pom.xml`), so a warning fails the build; fix warnings instead of suppressing them. `mvnw.cmd verify` fails if the line coverage of a package drops below 60 % (75 % for the MCP package; JaCoCo report in `target/site/jacoco`). Extra JVM options for the tests go into `-Dsurefire.jvmArgs=...`.
+The compiler runs with `-Werror` and an explicit list of `-Xlint` categories (see `pom.xml`), so a warning fails the build; fix warnings instead of suppressing them. `mvnw.cmd verify` fails if the line coverage drops below 78 % per package (85 % for the `internal` package; `Codes` holds only constants and is excluded; JaCoCo report in `target/site/jacoco`). Extra JVM options for the tests go into `-Dsurefire.jvmArgs=...`.
 
 The MCP server is part of the jar, so `mvnw.cmd verify` compiles and tests it.
 

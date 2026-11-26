@@ -193,7 +193,8 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
-                    <!-- Coverage gate: at least 60 % of the lines of each package (endpoint, MCP server). -->
+                    <!-- Coverage gate: the measured level is 81 % overall (endpoint 81 %, internal 87 %, MCP 81 %);
+                         the gate sits a few points below that so a regression fails while ordinary changes do not. -->
                     <execution>
                         <id>check</id>
                         <phase>verify</phase>
@@ -201,28 +202,42 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <!-- Codes holds only error-code constants; it has no behavior to cover. -->
+                            <excludes>
+                                <exclude>io.github.dbuedenbender.fxpilot.Codes</exclude>
+                            </excludes>
                             <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.78</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
                                 <rule>
                                     <element>PACKAGE</element>
                                     <limits>
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.60</minimum>
+                                            <minimum>0.78</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
-                                <!-- The MCP server is the main API surface for agents; keep it above 75 %. -->
+                                <!-- The JSON and token-file code is shared by both sides and small; keep it above 85 %. -->
                                 <rule>
                                     <element>PACKAGE</element>
                                     <includes>
-                                        <include>io.github.dbuedenbender.fxpilot.mcp</include>
+                                        <include>io.github.dbuedenbender.fxpilot.internal</include>
                                     </includes>
                                     <limits>
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.75</minimum>
+                                            <minimum>0.85</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
