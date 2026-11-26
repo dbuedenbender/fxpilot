@@ -27,6 +27,7 @@ Security release. Update from 1.0.0 and 1.1.0: 1.1.0 writes text typed into pass
 - `scripts/pin-release.sh` and `scripts/pin-release.ps1` update the version and SHA-256 pins in `fxpilot-mcp.cmd`, `fxpilot-mcp.sh` and `fxpilot-jar.ps1` from Maven Central's `fxpilot-<version>.jar.sha256` in one step. The order stays "publish, then pin", so no launcher checks a new version against the previous checksum before the artifact exists; the release workflow points to the script after a deployment.
 - The repository ships the Maven Wrapper (`mvnw`, `mvnw.cmd`, Maven 3.9.16), and CI builds with `./mvnw`, so a local Maven installation is optional. A new `.gitattributes` keeps `mvnw` and `*.sh` at LF and the Windows scripts at CRLF, so the shell launchers also run from Git Bash on Windows.
 - The JaCoCo gate follows the measured level: 78 % of the lines per package (85 % for `internal`) and 78 % for the whole jar, instead of 60 % and 75 % for the MCP package. `Codes`, which only holds error-code constants, is excluded.
+- `FXPILOT_TOOLS` defaults to `standard` instead of `all`: `tools/list` offers the reading, driving, waiting, asserting, screenshot and record/replay tools, which is enough for most sessions and costs less context. `FXPILOT_TOOLS=all` adds the robot, clipboard, canvas, WebView, chart, media, image and property tools; `fx_exec` keeps every operation reachable in all profiles, and a hidden tool called by name still fails with a hint.
 
 ### Fixed
 

@@ -46,7 +46,7 @@ Defaults in 1.x:
 | endpoint token | none | `token=auto` when other users share the machine |
 | `fxpilot.readonly` | `false` | `true` for inspection-only sessions |
 | `fxpilot.dangerous` | `true` (opt-in in 2.0) | `false` unless the session needs it |
-| `FXPILOT_TOOLS` | `all` | `core` or `standard` for small or less trusted clients |
+| `FXPILOT_TOOLS` | `standard` | `core` for small or less trusted clients; `all` only when a session needs the robot, clipboard, canvas, WebView, chart, media or property tools |
 | `FXPILOT_DANGEROUS` | `true` | `false` when replaying plans from elsewhere |
 | request body | 1 MB | keep the endpoint local |
 

@@ -32,7 +32,7 @@ import java.util.*;
 final class ToolCatalog {
 
     /**
-     * Which tools {@code tools/list} offers ({@code FXPILOT_TOOLS=core|standard|all}, default all). Every
+     * Which tools {@code tools/list} offers ({@code FXPILOT_TOOLS=core|standard|all}, default standard). Every
      * endpoint operation stays reachable through {@code fx_exec}, which is part of every profile.
      */
     enum Profile { CORE, STANDARD, ALL }
@@ -99,13 +99,13 @@ final class ToolCatalog {
 
     static Profile parseProfile(String raw) {
         if (raw == null || raw.isBlank()) {
-            return Profile.ALL;
+            return Profile.STANDARD;
         }
         try {
             return Profile.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            System.err.println("[fxpilot] unknown FXPILOT_TOOLS='" + raw + "', using all (core, standard, all)");
-            return Profile.ALL;
+            System.err.println("[fxpilot] unknown FXPILOT_TOOLS='" + raw + "', using standard (core, standard, all)");
+            return Profile.STANDARD;
         }
     }
 

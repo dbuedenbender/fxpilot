@@ -36,6 +36,7 @@ import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,6 +58,23 @@ class McpProtocolTest {
         assertTrue(((Map<?, ?>) r.get("capabilities")).containsKey("tools"));
         assertTrue(String.valueOf(r.get("instructions")).contains("fx_health"));
         assertTrue(String.valueOf(r.get("instructions")).contains("java -jar fxpilot.jar --replay"));
+    }
+
+    @Test
+    void instructionsNameTheActiveToolProfile() throws Exception {
+        try {
+            ToolCatalog.configure(ToolCatalog.Profile.STANDARD, true);
+            String standard = String.valueOf(((Map<?, ?>) FxPilotMcpServer.dispatch("initialize", Map.of()))
+                    .get("instructions"));
+            assertTrue(standard.contains("offers the standard tool profile"), standard);
+            assertTrue(standard.contains("FXPILOT_TOOLS=all"), standard);
+            ToolCatalog.configure(ToolCatalog.Profile.ALL, true);
+            String all = String.valueOf(((Map<?, ?>) FxPilotMcpServer.dispatch("initialize", Map.of()))
+                    .get("instructions"));
+            assertFalse(all.contains("FXPILOT_TOOLS=all"), "the all profile offers every tool, so no note is needed");
+        } finally {
+            ToolCatalog.configure(ToolCatalog.Profile.STANDARD, true);
+        }
     }
 
     @Test

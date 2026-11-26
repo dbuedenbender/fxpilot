@@ -38,7 +38,7 @@ class ToolCatalogTest {
 
     @AfterEach
     void restoreDefaults() {
-        ToolCatalog.configure(Profile.ALL, true);
+        ToolCatalog.configure(Profile.STANDARD, true);
     }
 
     private static Set<String> listedNames() {
@@ -103,10 +103,25 @@ class ToolCatalogTest {
 
     @Test
     void parsesProfileNames() {
-        assertEquals(Profile.ALL, ToolCatalog.parseProfile(null));
+        assertEquals(Profile.STANDARD, ToolCatalog.parseProfile(null));
+        assertEquals(Profile.STANDARD, ToolCatalog.parseProfile("  "));
         assertEquals(Profile.CORE, ToolCatalog.parseProfile(" core "));
         assertEquals(Profile.STANDARD, ToolCatalog.parseProfile("Standard"));
-        assertEquals(Profile.ALL, ToolCatalog.parseProfile("everything"));
+        assertEquals(Profile.ALL, ToolCatalog.parseProfile("all"));
+        assertEquals(Profile.STANDARD, ToolCatalog.parseProfile("everything"));
+    }
+
+    @Test
+    void theDefaultProfileCoversEverydayWorkAndLeavesTheRestOptIn() {
+        ToolCatalog.configure(ToolCatalog.parseProfile(null), true);
+        Set<String> names = listedNames();
+        assertTrue(names.containsAll(Set.of("fx_health", "fx_list_windows", "fx_get_view", "fx_find", "fx_click",
+                "fx_set_text", "fx_type", "fx_press_key", "fx_select", "fx_set_value", "fx_assert", "fx_wait_for",
+                "fx_screenshot", "fx_screenshot_diff", "fx_batch", "fx_record_start", "fx_record_stop", "fx_replay",
+                "fx_exec")), "default profile is missing everyday tools: " + names);
+        assertFalse(names.contains("fx_robot_click"), "robot tools stay opt-in with FXPILOT_TOOLS=all");
+        assertFalse(names.contains("fx_web"), "the extended tools stay opt-in");
+        assertTrue(names.size() < ToolCatalog.entries().size());
     }
 
     @Test

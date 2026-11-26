@@ -37,7 +37,7 @@ import java.util.function.BooleanSupplier;
  *
  * <p>Environment: FXPILOT_URL (default http://127.0.0.1:8765), FXPILOT_TOKEN (optional; without it the
  * token file of an endpoint started with {@code token=auto} is used), FXPILOT_TOOLS
- * ({@code core|standard|all}, default all) and FXPILOT_DANGEROUS ({@code false} hides fx_web, fx_property
+ * ({@code core|standard|all}, default {@code standard}) and FXPILOT_DANGEROUS ({@code false} hides fx_web, fx_property
  * and fx_image). Every tool also accepts an optional "port" argument to address another app on 127.0.0.1.
  */
 public final class FxPilotMcpServer {
@@ -188,24 +188,7 @@ public final class FxPilotMcpServer {
                 r.put("protocolVersion", negotiate(params.get("protocolVersion")));
                 r.put("capabilities", Map.of("tools", Map.of()));
                 r.put("serverInfo", Map.of("name", "fxpilot", "version", VERSION));
-                r.put("instructions", "Drives a running JavaFX application through its local FxPilot endpoint ("
-                        + EndpointClient.BASE_URL + ", other apps via the optional 'port' argument). Call fx_health first: it returns "
-                        + "app-specific notes and warnings (e.g. buttons that print or write to production systems) - "
-                        + "respect them. Then use fx_get_tree or fx_get_view to learn node ids/refs, act with fx_click / fx_set_text / "
-                        + "fx_select / fx_set_value / fx_set_expanded / fx_set_checked / fx_scroll / fx_click_menu and verify with "
-                        + "fx_screenshot or fx_assert. Selectors: fx:id (e.g. textField), CSS (#id, .class, Button), "
-                        + "id=<exact fx:id>[@<n>] for literal ids (e.g. containing dots), accessible=<text>, label=<text>, "
-                        + "ref=<path from fx_find>, text=<label> (exact, prefers visible nodes) or text*=<part> (substring). "
-                        + "Use fx_hotkey for shortcuts (CTRL+S), fx_click(button=SECONDARY, mode=mouse) for real mouse paths, "
-                        + "fx_wheel for scroll events, fx_drag, fx_table, fx_tree, fx_menu, fx_context_menu, fx_window, "
-                        + "fx_text, fx_property, fx_web, fx_chart, fx_canvas and fx_media for component-specific operations. "
-                        + "Errors contain a stable code such as "
-                        + "NODE_NOT_FOUND; use it to decide the next step. When an action matches several nodes the "
-                        + "result contains matches>1 and a warning - call fx_find to list them, then use nth=<index>, "
-                        + "within=<scope selector> or a more specific selector. Use fx_batch to run several calls in one "
-                        + "request. For regression checks, record a run with "
-                        + "fx_record_start/fx_record_stop and replay it with fx_replay or "
-                        + "'java -jar fxpilot.jar --replay plan.json' in CI.");
+                r.put("instructions", instructions());
                 return r;
             }
             case "ping":
@@ -221,6 +204,39 @@ public final class FxPilotMcpServer {
             default:
                 throw new RpcError(-32601, "Method not found: " + method);
         }
+    }
+
+    /**
+     * The client instructions. The tools named here are the everyday ones; when the active profile hides the
+     * extended tools, a note says so instead of pointing the model at calls that would be rejected.
+     */
+    static String instructions() {
+        String text = "Drives a running JavaFX application through its local FxPilot endpoint ("
+                + EndpointClient.BASE_URL + ", other apps via the optional 'port' argument). Call fx_health first: it returns "
+                + "app-specific notes and warnings (e.g. buttons that print or write to production systems) - "
+                + "respect them. Then use fx_get_tree or fx_get_view to learn node ids/refs, act with fx_click / fx_set_text / "
+                + "fx_select / fx_set_value / fx_set_expanded / fx_set_checked / fx_scroll / fx_click_menu and verify with "
+                + "fx_screenshot or fx_assert. Selectors: fx:id (e.g. textField), CSS (#id, .class, Button), "
+                + "id=<exact fx:id>[@<n>] for literal ids (e.g. containing dots), accessible=<text>, label=<text>, "
+                + "ref=<path from fx_find>, text=<label> (exact, prefers visible nodes) or text*=<part> (substring). "
+                + "Use fx_hotkey for shortcuts (CTRL+S), fx_click(button=SECONDARY, mode=mouse) for real mouse paths, "
+                + "fx_wheel for scroll events, fx_drag, fx_table, fx_tree, fx_menu, fx_context_menu, fx_window, "
+                + "fx_text, fx_property, fx_web, fx_chart, fx_canvas and fx_media for component-specific operations. "
+                + "Errors contain a stable code such as "
+                + "NODE_NOT_FOUND; use it to decide the next step. When an action matches several nodes the "
+                + "result contains matches>1 and a warning - call fx_find to list them, then use nth=<index>, "
+                + "within=<scope selector> or a more specific selector. Use fx_batch to run several calls in one "
+                + "request. For regression checks, record a run with "
+                + "fx_record_start/fx_record_stop and replay it with fx_replay or "
+                + "'java -jar fxpilot.jar --replay plan.json' in CI.";
+        ToolCatalog.Profile profile = ToolCatalog.profile();
+        if (profile == ToolCatalog.Profile.ALL) {
+            return text;
+        }
+        return text + " This session offers the " + profile.name().toLowerCase(Locale.ROOT)
+                + " tool profile, so tools outside it are hidden: set FXPILOT_TOOLS=all to use fx_robot_*, fx_clipboard, "
+                + "fx_canvas, fx_web, fx_chart, fx_media, fx_image and fx_property directly; fx_exec reaches every "
+                + "operation either way.";
     }
 
     /**

@@ -61,7 +61,7 @@ class McpToolsUiTest {
     void stop() {
         FxPilotServer.stop();
         System.clearProperty("fxpilot.tokenDir");
-        ToolCatalog.configure(ToolCatalog.Profile.ALL, true);
+        ToolCatalog.configure(ToolCatalog.Profile.STANDARD, true);
     }
 
     private Map<String, Object> call(String tool, Object... kv) throws Exception {

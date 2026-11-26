@@ -156,7 +156,7 @@ MCP server (`java -jar fxpilot.jar`):
 | `FXPILOT_URL` | Default endpoint, `http://127.0.0.1:8765` |
 | `FXPILOT_TOKEN` | Token for the endpoint in `FXPILOT_URL`. Other ports (the `port` argument) use their token file (`token=auto`), so the token never goes to a service the client merely named. |
 | `FXPILOT_TOKEN_DIR` | Directory of the token files, same default as the endpoint |
-| `FXPILOT_TOOLS` | Tool profile: `core`, `standard` or `all` (default), see [Tool profiles](#tool-profiles) |
+| `FXPILOT_TOOLS` | Tool profile: `core`, `standard` or `all` (default `standard`), see [Tool profiles](#tool-profiles) |
 | `FXPILOT_DANGEROUS` | `false` hides `fx_web`, `fx_property` and `fx_image`, rejects closing windows and tabs, reading the clipboard and dangerous `fx_exec` operations, and lets the MCP server write plans, baselines and reports and read plans and baselines only below its working directory (symbolic links resolved) |
 
 ## Several apps at once
@@ -198,13 +198,15 @@ Selectors: fx:id (`textField`), CSS (`#button`, `.check-box`, `ComboBox`), `id=c
 
 ### Tool profiles
 
-The tool definitions are sent with every request, and 57 of them cost context and make the choice harder for the model. `FXPILOT_TOOLS` limits what `tools/list` offers:
+Every tool definition is sent with each request, and the `all` profile's 57 tools cost context and make the choice harder for the model. `FXPILOT_TOOLS` limits what `tools/list` offers; the default is `standard`, which covers reading, driving, waiting, asserting, screenshots and record/replay:
 
 | Profile | Tools |
 |---|---|
 | `core` | `fx_health`, `fx_list_windows`, `fx_get_view`, `fx_get_node`, `fx_find`, `fx_click`, `fx_set_text`, `fx_type`, `fx_press_key`, `fx_select`, `fx_set_value`, `fx_set_checked`, `fx_wait_for`, `fx_assert`, `fx_screenshot`, `fx_batch`, `fx_exec` |
-| `standard` | `core` plus `fx_get_tree`, `fx_hover`, `fx_set_expanded`, `fx_scroll`, `fx_scroll_to`, `fx_click_menu`, `fx_menu`, `fx_context_menu`, `fx_hotkey`, `fx_focus`, `fx_popup`, `fx_text`, `fx_selection`, `fx_table`, `fx_tree`, `fx_tab`, `fx_window`, `fx_wait_for_window`, `fx_screenshot_diff`, `fx_record_start`, `fx_record_stop`, `fx_replay`, `fx_retry`, `fx_idle` |
-| `all` (default) | every tool |
+| `standard` (default) | `core` plus `fx_get_tree`, `fx_hover`, `fx_set_expanded`, `fx_scroll`, `fx_scroll_to`, `fx_click_menu`, `fx_menu`, `fx_context_menu`, `fx_hotkey`, `fx_focus`, `fx_popup`, `fx_text`, `fx_selection`, `fx_table`, `fx_tree`, `fx_tab`, `fx_window`, `fx_wait_for_window`, `fx_screenshot_diff`, `fx_record_start`, `fx_record_stop`, `fx_replay`, `fx_retry`, `fx_idle` |
+| `all` | every tool: the robot, clipboard, canvas, WebView, chart, media, image and property tools on top of `standard` |
+
+Set `FXPILOT_TOOLS=all` when a session needs those extended tools. Call `fx_health` first either way: it reports the app, and a tool that the profile hides is rejected with a hint that names the setting.
 
 `fx_exec` is part of every profile, so no operation becomes unreachable. A hidden tool called by name fails with a hint instead of running. Recorded plans replay regardless of the profile, but not past `FXPILOT_DANGEROUS=false`.
 
