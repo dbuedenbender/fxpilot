@@ -57,7 +57,7 @@ mvn -B -q -f examples/modular-demo/pom.xml package dependency:copy-dependencies 
     -DoutputDirectory="$ROOT/$WORK/mods"
 # shellcheck disable=SC2086
 "${JAVA[@]}" $EXTRA_JVM $HEADLESS -Dfxpilot.port=8782 \
-    --module-path "examples/modular-demo/target/fxpilot-modular-demo-1.1.0.jar$SEP$WORK/mods" \
+    --module-path "examples/modular-demo/target/fxpilot-modular-demo-1.1.1.jar$SEP$WORK/mods" \
     --patch-module "javafx.graphics=$MONOCLE" \
     -m io.github.dbuedenbender.fxpilot.modulardemo/io.github.dbuedenbender.fxpilot.modulardemo.ModularDemoApp \
     > "$WORK/modular.log" 2>&1 &

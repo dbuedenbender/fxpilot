@@ -6,7 +6,7 @@
 
     <groupId>io.github.dbuedenbender.fxpilot.examples</groupId>
     <artifactId>fxpilot-modular-demo</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <packaging>jar</packaging>
 
     <name>FxPilot Modular Demo</name>
@@ -16,7 +16,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>17</maven.compiler.release>
         <javafx.version>21.0.6</javafx.version>
-        <fxpilot.version>1.1.0</fxpilot.version>
+        <fxpilot.version>1.1.1</fxpilot.version>
     </properties>
 
     <dependencies>

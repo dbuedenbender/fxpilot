@@ -50,7 +50,7 @@ java -jar fxpilot.jar --replay examples\plans\modular-smoke.json
 [`../replay-headless.sh`](../replay-headless.sh) starts this app on the module path and `demo-app` on the class path with Monocle and replays all example plans. For the module path, Monocle is patched into `javafx.graphics`:
 
 ```bash
-java --module-path "examples/modular-demo/target/fxpilot-modular-demo-1.1.0.jar:target/headless/mods" \
+java --module-path "examples/modular-demo/target/fxpilot-modular-demo-1.1.1.jar:target/headless/mods" \
      --patch-module javafx.graphics=target/headless/openjfx-monocle-21.0.2.jar \
      -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw -Dfxpilot.port=8782 \
      -m io.github.dbuedenbender.fxpilot.modulardemo/io.github.dbuedenbender.fxpilot.modulardemo.ModularDemoApp

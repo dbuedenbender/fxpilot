@@ -16,12 +16,12 @@ Windows, Claude Code:
 scripts\install-claude-code.cmd
 ```
 
-The installers download `fxpilot-1.1.0.jar` into `%LOCALAPPDATA%\FxPilot` and register the MCP server with the default endpoint `http://127.0.0.1:8765`.
+The installers download `fxpilot-1.1.1.jar` into `%LOCALAPPDATA%\FxPilot` and register the MCP server with the default endpoint `http://127.0.0.1:8765`.
 
 Optional arguments:
 
 ```bat
-scripts\install-claude-desktop.cmd -Version 1.1.0 -Url http://127.0.0.1:8766 -Token your-token
+scripts\install-claude-desktop.cmd -Version 1.1.1 -Url http://127.0.0.1:8766 -Token your-token
 ```
 
 The Claude Desktop installer backs up an existing `claude_desktop_config.json` to `.bak` and merges the `fxpilot` entry without removing other MCP servers.
@@ -39,7 +39,7 @@ scripts\fxpilot-mcp.cmd
 The jar is cached under:
 
 ```text
-%LOCALAPPDATA%\FxPilot\fxpilot-1.1.0.jar
+%LOCALAPPDATA%\FxPilot\fxpilot-1.1.1.jar
 ```
 
 ### Linux and macOS
@@ -73,7 +73,7 @@ On Linux/macOS use the absolute path to `fxpilot-mcp.sh` as `command`.
 
 ### Version pinning
 
-Both scripts use `1.1.0` by default. Set `FXPILOT_VERSION` to use another published version:
+Both scripts use `1.1.1` by default. Set `FXPILOT_VERSION` to use another published version:
 
 ```bat
 set FXPILOT_VERSION=1.0.1
@@ -94,6 +94,8 @@ scripts\fxpilot-mcp.cmd
 ```
 
 A jar that is already in the cache is not checked again. The Windows launcher downloads with PowerShell, not `curl.exe`, whose schannel backend fails on networks where the certificate revocation server is unreachable.
+
+Maintainers pin a new release with `scripts\pin-release.ps1 -Version <version>` or `scripts/pin-release.sh <version>`. It copies the version and the SHA-256 from Maven Central into all three scripts; run it after the deployment is published, see [docs/maven-central.md](../docs/maven-central.md).
 
 ### Agent mode
 

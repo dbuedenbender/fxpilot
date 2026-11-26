@@ -72,7 +72,19 @@ The workflow refuses to publish when the tag (`v1.0.1`) and `project.version` (`
 
 ## 7. Update the launcher scripts
 
-`scripts/fxpilot-mcp.cmd`, `scripts/fxpilot-mcp.sh` and `scripts/fxpilot-jar.ps1` download the default version and check it against a SHA-256 stored in the script. Once the release is on Maven Central, set the new version and the content of `fxpilot-<version>.jar.sha256` from Maven Central in all three files. `LauncherScriptsTest` fails if they differ.
+`scripts/fxpilot-mcp.cmd`, `scripts/fxpilot-mcp.sh` and `scripts/fxpilot-jar.ps1` download the default version and check it against a SHA-256 stored in the script.
+
+Run this after the deployment is published in the portal, not before: the hash comes from `fxpilot-<version>.jar.sha256` on Maven Central, and a launcher that checks the new version against the previous hash would reject every download.
+
+```bash
+scripts/pin-release.sh 1.1.1
+```
+
+```powershell
+scripts\pin-release.ps1 -Version 1.1.1
+```
+
+Both scripts set the version and the hash in all three files (`-Sha256` / a second argument pins a hash you already have). `LauncherScriptsTest` fails if the three files disagree. The release workflow prints a warning as long as the launchers still pin the previous version.
 
 ## Local signing test
 

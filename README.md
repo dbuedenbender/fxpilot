@@ -82,7 +82,7 @@ If you do not want to keep the jar locally, use the launcher scripts in [`script
 <dependency>
     <groupId>io.github.dbuedenbender</groupId>
     <artifactId>fxpilot</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 </dependency>
 ```
 
@@ -367,7 +367,7 @@ Every error response carries a stable `code` next to the human-readable message:
 
 - Without a port, no endpoint starts. Production launches are unaffected as long as the VM option is absent.
 - The endpoint binds to `127.0.0.1` only.
-- It only answers requests whose `Host` header is `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>` and that carry no `Origin` header. Binding to loopback alone does not keep web pages out: a page on a domain that resolves to `127.0.0.1` (DNS rebinding) is same-origin with the endpoint. Browsers always send that domain in `Host`, so the check rejects them with 403 `HOST_REJECTED`. FxPilot 1.0.0 lacks this check, so update to 1.1.0 or set a token.
+- It only answers requests whose `Host` header is `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>` and that carry no `Origin` header. Binding to loopback alone does not keep web pages out: a page on a domain that resolves to `127.0.0.1` (DNS rebinding) is same-origin with the endpoint. Browsers always send that domain in `Host`, so the check rejects them with 403 `HOST_REJECTED`. FxPilot 1.0.0 lacks this check, so update to 1.1.1 or set a token.
 - A token is optional, but recommended. `token=auto` generates a random token per start and writes it to `%LOCALAPPDATA%\FxPilot\ports\<port>.token` (Windows) or `~/.fxpilot/ports/<port>.token` (owner-only permissions on Linux and macOS); the MCP server reads it from there and the endpoint deletes it on `stop()` or, in agent mode, when the JVM ends. The token is sent in `X-FxPilot-Token` and compared in constant time.
 - Without a token, every POST needs the header `X-FxPilot-Client: <anything>`. The MCP server sends it automatically. If you call the endpoint with curl yourself, add `-H "X-FxPilot-Client: curl"`.
 - Request bodies are limited to 1 MB.
@@ -423,7 +423,7 @@ The MCP server is part of the jar, so `mvn verify` compiles and tests it.
 
 `mvn -Prelease deploy` signs the artifacts and uploads them to the Central Portal. `autoPublish` is `false`, so review the deployment in the portal and release it there.
 
-The workflow `.github/workflows/release.yml` does the same for `v*` tags and refuses to publish when the tag (`v1.1.0`) does not match `project.version` (`1.1.0`). Required repository secrets:
+The workflow `.github/workflows/release.yml` does the same for `v*` tags and refuses to publish when the tag (`v1.1.1`) does not match `project.version` (`1.1.1`). Required repository secrets:
 
 | Secret | Purpose |
 |---|---|
@@ -435,8 +435,18 @@ The workflow `.github/workflows/release.yml` does the same for `v*` tags and ref
 If the Central secrets are missing, the tag workflow succeeds and skips the Central upload. See [docs/maven-central.md](docs/maven-central.md) for namespace verification, GPG setup, token creation and the publish step.
 
 ```bat
-git tag -a v1.1.0 -m "FxPilot 1.1.0"
-git push origin v1.1.0
+git tag -a v1.1.1 -m "FxPilot 1.1.1"
+git push origin v1.1.1
+```
+
+Once you have published the deployment in the portal, point the launcher scripts at it. The script also pins its SHA-256 from Maven Central, and `LauncherScriptsTest` checks that the three scripts agree:
+
+```bat
+scripts\pin-release.ps1 -Version 1.1.1
+```
+
+```sh
+scripts/pin-release.sh 1.1.1
 ```
 
 ## Contributing

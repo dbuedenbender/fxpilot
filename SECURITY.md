@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The latest published minor version receives security fixes.
+The latest published version receives security fixes. 1.1.1 fixes issues that also affect 1.1.0 (text typed into password fields in recorded plans, launchers without a pinned checksum) and 1.0.0 (the same plus the missing DNS rebinding guard), so update from both.
 
 ## Reporting a vulnerability
 
@@ -64,4 +64,4 @@ The endpoint is meant for the local machine only. Do not expose it to other mach
 
 ## Sensitive data
 
-`PasswordField` text is never returned: snapshots show `***`, only text-independent properties can be read, text selectors do not match it and error messages leave it out, and recorded replay plans store `${name}` variables instead of text entered into a PasswordField with `fx_set_text`, `fx_type`, `fx_text` or `fx_exec`. Single keys sent with `fx_press_key`, clipboard content and text typed into other fields are recorded as they are, so still treat plans as sensitive data.
+`PasswordField` text is never returned: snapshots show `***`, only text-independent properties can be read, text selectors do not match it and error messages leave it out, and recorded replay plans store `${name}` variables instead of text entered into a PasswordField with `fx_set_text`, `fx_type`, `fx_text` or `fx_exec`. 1.0.0 and 1.1.0 stored that text verbatim in plans recorded with those tools. Single keys sent with `fx_press_key`, clipboard content and text typed into other fields are recorded as they are, so still treat plans as sensitive data.

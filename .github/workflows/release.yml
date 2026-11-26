@@ -75,3 +75,12 @@ jobs:
       - name: Central publishing skipped
         if: steps.central.outputs.enabled != 'true'
         run: echo "::notice::Maven Central publishing skipped because secrets are missing."
+
+      - name: Remind to pin the launcher scripts
+        if: steps.central.outputs.enabled == 'true'
+        run: |
+          VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
+          PINNED="$(grep -m1 -oE '^DEFAULT_VERSION="[^"]+"' scripts/fxpilot-mcp.sh | cut -d'"' -f2)"
+          if [ "$PINNED" != "$VERSION" ]; then
+            echo "::warning::The launchers still pin $PINNED. After the deployment is published in the Central Portal, run scripts/pin-release.sh $VERSION and commit the change."
+          fi
