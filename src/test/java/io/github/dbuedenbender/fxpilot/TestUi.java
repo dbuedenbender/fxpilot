@@ -187,6 +187,11 @@ public final class TestUi {
         delete.getStyleClass().add("danger");
         delete.setOnAction(e -> status.setText("Deleted"));
         delete.setDefaultButton(true);
+        // ALT+P fires it through the scene's mnemonics, whatever node has the focus
+        Button purge = new Button("_Purge");
+        purge.setId("purge");
+        purge.setMnemonicParsing(true);
+        purge.setOnAction(e -> status.setText("Purged"));
 
         Button dupA = new Button("Dup");
         dupA.setId("dupA");
@@ -341,7 +346,7 @@ public final class TestUi {
         tri.setId("tri");
         tri.setAllowIndeterminate(true);
 
-        HBox buttons = new HBox(ok, delete, dupA, dupB, hidden, disabled, dialog, twinA, twinB);
+        HBox buttons = new HBox(ok, delete, purge, dupA, dupB, hidden, disabled, dialog, twinA, twinB);
         buttons.setId("buttons");
         List<javafx.scene.Node> rows = List.of(menuBar, status, new HBox(nameLabel, name), password, buttons,
                 agree, tri, country, list, table, tree, volume, date, tabs, machines,

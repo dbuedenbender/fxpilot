@@ -111,6 +111,32 @@ class EndpointRegressionTest extends UiTestBase {
     }
 
     @Test
+    void robotClickReachesTheButtonUnderThePoint() throws Exception {
+        double[] center = FxThread.query(() -> {
+            javafx.scene.Node n = Selectors.find("okButton");
+            javafx.geometry.Bounds b = n.localToScene(n.getBoundsInLocal());
+            return new double[]{b.getCenterX(), b.getCenterY()};
+        });
+        ok("/robotClick", "x", String.valueOf(center[0]), "y", String.valueOf(center[1]));
+        long end = System.currentTimeMillis() + 3000;
+        while (!status().startsWith("Saved") && System.currentTimeMillis() < end) {
+            Thread.sleep(20);
+        }
+        assertTrue(status().startsWith("Saved"), "robot events are delivered asynchronously: '" + status() + "'");
+    }
+
+    @Test
+    void pressedKeysTypeCharactersIntoATextField() throws Exception {
+        TestUi.onFx(() -> ((javafx.scene.control.TextField) Selectors.find("nameField")).clear());
+        ok("/key", "selector", "nameField", "key", "DIGIT1");
+        ok("/key", "selector", "nameField", "key", "NUMPAD2");
+        ok("/key", "selector", "nameField", "key", "A", "modifiers", "SHIFT");
+        ok("/key", "selector", "nameField", "key", "b", "modifiers", " SHIFT ");
+        ok("/key", "selector", "nameField", "key", "c");
+        assertEquals("12ABc", FxThread.query(() -> ((javafx.scene.control.TextField) Selectors.find("nameField")).getText()));
+    }
+
+    @Test
     void keyEndpointHonoursNthAndModifiers() throws Exception {
         String body = ok("/key", "selector", "text=Dup", "nth", "1", "key", "A", "modifiers", "SHIFT");
         assertTrue(body.contains("\"id\":\"dupB\""), body);

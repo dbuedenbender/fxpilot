@@ -1,5 +1,6 @@
 package io.github.dbuedenbender.fxpilot.demo;
 
+import javafx.beans.Observable;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -46,7 +47,9 @@ import java.util.Optional;
 final class CustomerView {
 
     private final ActivityLog log;
-    private final ObservableList<Customer> customers = FXCollections.observableArrayList();
+    // the extractor lets the country chart follow edits, not only added or removed customers
+    private final ObservableList<Customer> customers = FXCollections.observableArrayList(
+            c -> new Observable[] {c.countryProperty()});
     private final FilteredList<Customer> filtered = new FilteredList<>(customers, c -> true);
     private final TableView<Customer> table = new TableView<>(filtered);
 

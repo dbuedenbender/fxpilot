@@ -80,7 +80,20 @@ set FXPILOT_VERSION=1.0.1
 scripts\fxpilot-mcp.cmd
 ```
 
-For production or shared environments, verify the downloaded artifact against the published checksums. The scripts intentionally keep the download simple; a checksum-hardened variant can be added when needed.
+### Checksums
+
+Every download is checked before it goes into the cache; a failed or interrupted download leaves nothing behind.
+
+- The default version is checked against a SHA-256 stored in the scripts, so a jar changed on the server or on the way is rejected.
+- Another version is checked against `FXPILOT_SHA256` (installers: `-Sha256`) if set, otherwise against the `.sha256` file Maven Central publishes next to the jar. That file comes from the same server, so it only catches broken downloads; set `FXPILOT_SHA256` where that matters.
+
+```bat
+set FXPILOT_VERSION=1.0.0
+set FXPILOT_SHA256=<sha256 of fxpilot-1.0.0.jar>
+scripts\fxpilot-mcp.cmd
+```
+
+A jar that is already in the cache is not checked again. The Windows launcher downloads with PowerShell, not `curl.exe`, whose schannel backend fails on networks where the certificate revocation server is unreachable.
 
 ### Agent mode
 

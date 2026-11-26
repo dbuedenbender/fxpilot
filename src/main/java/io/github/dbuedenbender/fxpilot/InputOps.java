@@ -74,7 +74,10 @@ final class InputOps {
         boolean control = false;
         boolean alt = false;
         boolean meta = false;
-        for (String part : raw.split("[,+\\s]+")) {
+        for (String part : raw.trim().split("[,+\\s]+")) {
+            if (part.isEmpty()) {
+                continue;
+            }
             switch (part.toUpperCase(Locale.ROOT)) {
                 case "SHIFT": shift = true; break;
                 case "CTRL": case "CONTROL": control = true; break;
@@ -144,11 +147,34 @@ final class InputOps {
         }
         DenyList.checkKey(target, code, mods.shift, mods.control, mods.alt, mods.meta);
         Event.fireEvent(target, keyEvent(KeyEvent.KEY_PRESSED, code, "", mods));
-        if ((code.isLetterKey() || code.isDigitKey()) && !mods.control && !mods.alt && !mods.meta) {
-            Event.fireEvent(target, new KeyEvent(KeyEvent.KEY_TYPED, keyName, "", KeyCode.UNDEFINED,
+        String typed = mods.control || mods.alt || mods.meta ? null : typedCharacter(code, mods.shift);
+        if (typed != null) {
+            Event.fireEvent(target, new KeyEvent(KeyEvent.KEY_TYPED, typed, "", KeyCode.UNDEFINED,
                     mods.shift, false, false, false));
         }
         Event.fireEvent(target, keyEvent(KeyEvent.KEY_RELEASED, code, "", mods));
+    }
+
+    /**
+     * The character a key types, or null when it types none or the result depends on the keyboard layout
+     * (SHIFT with a digit row key). Text with symbols goes through fx_type, which needs no layout.
+     */
+    static String typedCharacter(KeyCode code, boolean shift) {
+        if (code.isLetterKey()) {
+            String letter = code.getChar();
+            return shift ? letter.toUpperCase(Locale.ROOT) : letter.toLowerCase(Locale.ROOT);
+        }
+        String name = code.name();
+        if (name.startsWith("NUMPAD") && name.length() == 7) {
+            return name.substring(6);
+        }
+        if (name.startsWith("DIGIT") && name.length() == 6) {
+            return shift ? null : name.substring(5);
+        }
+        if (code == KeyCode.SPACE) {
+            return " ";
+        }
+        return null;
     }
 
     private static KeyEvent keyEvent(EventType<KeyEvent> type, KeyCode code, String text, Modifiers mods) {

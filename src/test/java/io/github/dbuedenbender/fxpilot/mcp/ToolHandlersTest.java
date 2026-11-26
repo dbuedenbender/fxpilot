@@ -97,6 +97,13 @@ class ToolHandlersTest {
     }
 
     @Test
+    void waitTimeoutsAreCappedSoOneCallCannotBlockTheServer() {
+        assertEquals(5000L, ToolHandlers.timeoutMs(Map.of()));
+        assertEquals(0L, ToolHandlers.timeoutMs(Map.of("timeoutMs", -5)));
+        assertEquals(ToolHandlers.MAX_TIMEOUT_MS, ToolHandlers.timeoutMs(Map.of("timeoutMs", Long.MAX_VALUE)));
+    }
+
+    @Test
     void selectorAndPickHelpersKeepOnlyPresentArguments() {
         Map<String, Object> source = Map.of("selector", "#x", "within", "#p", "nth", 2, "extra", "v");
         Map<String, Object> selected = ToolHandlers.withSelector(source, "extra", "missing");

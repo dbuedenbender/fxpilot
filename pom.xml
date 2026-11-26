@@ -90,7 +90,8 @@
                 <configuration>
                     <release>${maven.compiler.release}</release>
                     <compilerArgs>
-                        <arg>-Xlint:all</arg>
+                        <!-- explicit categories: -Xlint:all would pick up new categories of newer JDKs and fail -Werror -->
+                        <arg>-Xlint:cast,deprecation,dep-ann,divzero,empty,fallthrough,finally,overrides,rawtypes,removal,serial,static,try,unchecked,varargs</arg>
                         <arg>-Werror</arg>
                     </compilerArgs>
                 </configuration>
@@ -125,6 +126,19 @@
                         <additionalClasspathDependency>
                             <groupId>org.openjfx</groupId>
                             <artifactId>javafx-controls</artifactId>
+                            <version>${javafx.test.version}</version>
+                            <classifier>${javafx.test.platform}</classifier>
+                        </additionalClasspathDependency>
+                        <!-- WebView, for the positive fx_web tests (loaded reflectively, like in the endpoint). -->
+                        <additionalClasspathDependency>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>javafx-web</artifactId>
+                            <version>${javafx.test.version}</version>
+                            <classifier>${javafx.test.platform}</classifier>
+                        </additionalClasspathDependency>
+                        <additionalClasspathDependency>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>javafx-media</artifactId>
                             <version>${javafx.test.version}</version>
                             <classifier>${javafx.test.platform}</classifier>
                         </additionalClasspathDependency>

@@ -1,5 +1,41 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+
+- Recorded plans no longer contain text entered into a `PasswordField` with `fx_set_text`, `fx_type`, `fx_text` or `fx_exec`. The step stores `${<fx:id>}` (or `${password}`, `${password2}` ...), the plan lists these names under `secrets`, and a replay without values for all of them fails before the first step. Single keys (`fx_press_key`) and clipboard content are still recorded as they are.
+- The launchers (`fxpilot-mcp.cmd`, `fxpilot-mcp.sh`) and the installers check the downloaded jar against a SHA-256 stored in the scripts for the default version, and against `FXPILOT_SHA256` / `-Sha256` or Maven Central's `.sha256` for other versions. Before, `fxpilot-mcp.cmd` and the installers did not check the download at all, and `fxpilot-mcp.sh` only against the `.sha1` from the same server, skipping the check when that file or a hash tool was missing.
+- The MCP server resolves symbolic links before it checks that a file lies below its working directory, and with `FXPILOT_DANGEROUS=false` it now also reads plans (`fx_replay`) and screenshot baselines (`fx_screenshot_diff`) only from there. The `--replay` CLI is not restricted.
+- The deny list also checks mnemonics (ALT+underlined letter) of denied controls. There was no known bypass: FxPilot's own key events carry no text and did not fire mnemonics.
+- With `token=auto` the token file is deleted when the JVM ends, also in agent mode, where `stop()` is never called.
+- The endpoint handles requests with at most 8 threads instead of an unbounded pool.
+
+### Changed
+
+- `fx_wait_for` and `fx_wait_for_window` wait at most 120 s (`timeoutMs` is capped), because the MCP server handles one request at a time.
+- The MCP server handles `notifications/cancelled`: the named request stops (a running call is interrupted, also inside `fx_batch` and `fx_replay`) and gets no reply. Requests still run one at a time and in order, so a `ping` sent during a long call is answered after it.
+- With `FXPILOT_DANGEROUS=false`, files are written and read through the path that was checked (symbolic links resolved), not the path the client passed.
+- CI starts the MCP server from the built jar on JDK 11.
+- JSON-RPC error codes: invalid params (arguments or params that are no object, a tool name that is no string) are `-32602` instead of `-32600`/`-32603`; a request without `method`, a non-string `method` and a JSON array are answered with `-32600` instead of being dropped or answered with `-32603`.
+- `--replay` rejects unknown options with exit code 2 instead of ignoring them.
+- CI retries a Maven run only when the log shows a failed download; a failing test fails the job at once.
+- README: the settings are process-wide and can be set in code with `System.setProperty` before `startIfEnabled()`.
+- The compiler checks an explicit list of lint categories instead of `-Xlint:all`, so a newer JDK with new categories does not break the build.
+
+### Fixed
+
+- `fx_press_key` typed the key name (`DIGIT1` inserted "DIGIT1"); it now types the character (`1`, `7` for `NUMPAD7`, a space for `SPACE`) and honours SHIFT for letters. SHIFT with a digit row key types nothing, because the result depends on the keyboard layout.
+- `modifiers` with leading or trailing spaces (`" CTRL"`) failed with "Unknown modifier ''".
+- `fx_replay` while recording added the replayed `fx_assert` steps, but not the replayed actions, to the recording.
+- `fx_media` on a MediaView without a MediaPlayer failed with HTTP 500 instead of `MEDIA_NOT_AVAILABLE`.
+- An `Error` in a request handler (e.g. `NoClassDefFoundError`) closed the connection without a response; it is now a 500 `INTERNAL_ERROR`.
+- `FxPilotServer.start(port, token)` checks the JavaFX version like `startIfEnabled()`.
+- The launchers and installers download into a separate file and move it into the cache only when complete and verified. An interrupted download used to stay in the cache.
+- `fxpilot-mcp.cmd` downloads with PowerShell instead of `curl.exe`, which fails where the certificate revocation server is unreachable (`CRYPT_E_REVOCATION_OFFLINE`).
+- Demo app: the "Customers by country" chart showed a "?" slice for a newly saved customer, because it followed only added and removed customers, not their country.
+- Tests: positive tests for `fx_web` (real WebView), `fx_media` (real MediaPlayer) and a robot click, plus tests for the fixes above.
+
 ## [1.1.0] - 2026-11-25
 
 ### Security

@@ -23,6 +23,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +34,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -51,7 +54,11 @@ class McpServerStdioTest {
                 + "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\","
                 + "\"params\":{\"name\":\"fx_health\",\"arguments\":5}}\n"
                 + "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"initialize\",\"params\":[]}\n"
-                + "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/list\"}\n";
+                + "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/list\"}\n"
+                + "{\"jsonrpc\":\"2.0\",\"id\":7}\n"
+                + "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":42}\n"
+                + "{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/call\",\"params\":{\"name\":5}}\n"
+                + "[1,2]\n";
         try (BufferedReader in = new BufferedReader(new StringReader(input));
              PrintStream out = new PrintStream(bytes, true, StandardCharsets.UTF_8)) {
             FxPilotMcpServer.serve(in, out);
@@ -79,18 +86,75 @@ class McpServerStdioTest {
 
         Map<?, ?> badArguments = response(out);
         assertEquals(4L, badArguments.get("id"));
-        assertEquals(-32600, errorCode(badArguments));
-        assertTrue(String.valueOf(errorMessage(badArguments)).contains("expected JSON object"));
+        assertEquals(-32602, errorCode(badArguments), "arguments that are no object are invalid params");
+        assertTrue(String.valueOf(errorMessage(badArguments)).contains("expected a JSON object"));
 
         Map<?, ?> badParams = response(out);
         assertEquals(5L, badParams.get("id"));
-        assertEquals(-32600, errorCode(badParams));
+        assertEquals(-32602, errorCode(badParams));
 
         Map<?, ?> list = response(out);
         assertEquals(6L, list.get("id"));
         assertTrue(((List<?>) ((Map<?, ?>) list.get("result")).get("tools")).size() > 10);
 
+        Map<?, ?> noMethod = response(out);
+        assertEquals(7L, noMethod.get("id"));
+        assertEquals(-32600, errorCode(noMethod), "a request without method is an invalid request");
+
+        Map<?, ?> numericMethod = response(out);
+        assertEquals(8L, numericMethod.get("id"));
+        assertEquals(-32600, errorCode(numericMethod));
+
+        Map<?, ?> numericName = response(out);
+        assertEquals(9L, numericName.get("id"));
+        assertEquals(-32602, errorCode(numericName));
+
+        Map<?, ?> array = response(out);
+        assertNull(array.get("id"));
+        assertEquals(-32600, errorCode(array), "batches are not part of MCP");
+
         assertNull(out.readLine(), "the server must not send unsolicited lines");
+    }
+
+    @Test
+    void cancellationStopsTheRunningCallWithoutAReply() throws Exception {
+        PipedOutputStream client = new PipedOutputStream();
+        BufferedReader in = new BufferedReader(new InputStreamReader(new PipedInputStream(client), StandardCharsets.UTF_8));
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(bytes, true, StandardCharsets.UTF_8);
+        Thread server = new Thread(() -> {
+            try {
+                FxPilotMcpServer.serve(in, out);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        server.start();
+        long started = System.nanoTime();
+        // nothing listens on port 1, so fx_wait_for polls until its timeout
+        send(client, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"fx_wait_for\","
+                + "\"arguments\":{\"selector\":\"x\",\"timeoutMs\":60000,\"port\":1}}}");
+        Thread.sleep(500);
+        send(client, "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":1}}");
+        // queued behind the call, cancelled before it starts
+        send(client, "{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"method\":\"tools/call\",\"params\":{\"name\":\"fx_wait_for\","
+                + "\"arguments\":{\"selector\":\"x\",\"timeoutMs\":60000,\"port\":1}}}");
+        send(client, "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":\"2\"}}");
+        send(client, "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"ping\"}");
+        client.close();
+        server.join(20_000);
+        assertFalse(server.isAlive(), "the cancelled call kept the server busy");
+        assertTrue(System.nanoTime() - started < TimeUnit.SECONDS.toNanos(20));
+
+        BufferedReader replies = new BufferedReader(new InputStreamReader(
+                new ByteArrayInputStream(bytes.toByteArray()), StandardCharsets.UTF_8));
+        assertEquals(3L, response(replies).get("id"), "cancelled requests get no reply");
+        assertNull(replies.readLine());
+    }
+
+    private static void send(PipedOutputStream client, String line) throws Exception {
+        client.write((line + "\n").getBytes(StandardCharsets.UTF_8));
+        client.flush();
     }
 
     @Test

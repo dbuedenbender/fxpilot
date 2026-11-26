@@ -32,18 +32,23 @@ import javafx.scene.control.TableColumnBase;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.MenuItem;
+import javafx.collections.ObservableList;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.Mnemonic;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Window;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Selector patterns from {@code fxpilot.deny}. A node (or one of its ancestors) matching any
  * pattern cannot be driven, which turns the advisory notes into a real lock. Besides direct actions
  * this also covers the indirect ways to trigger a control: keys that reach a denied focus owner,
- * ENTER/ESCAPE on a denied default/cancel button, accelerators of denied menu items, menu and
+ * ENTER/ESCAPE on a denied default/cancel button, accelerators of denied menu items, mnemonics
+ * (ALT+letter) of denied controls, menu and
  * context-menu entries, and robot clicks at the coordinates of a denied node.
  */
 final class DenyList {
@@ -147,6 +152,18 @@ final class DenyList {
         for (Window w : Window.getWindows()) {
             if (w instanceof ContextMenu && w.isShowing()) {
                 checkAccelerators(((ContextMenu) w).getItems(), event, ((ContextMenu) w).getOwnerNode());
+            }
+        }
+        // Mnemonics (ALT+underlined letter) fire their node through the scene, whatever the event target is.
+        // They match on the event text; FxPilot's own key events carry none, so the check uses the key's
+        // character and stays correct if an event with text ever reaches the scene.
+        KeyEvent withText = new KeyEvent(KeyEvent.KEY_PRESSED, KeyEvent.CHAR_UNDEFINED, code.getChar(), code,
+                shift, control, alt, meta);
+        for (Map.Entry<KeyCombination, ObservableList<Mnemonic>> entry : scene.getMnemonics().entrySet()) {
+            if (entry.getKey().match(event) || entry.getKey().match(withText)) {
+                for (Mnemonic mnemonic : entry.getValue()) {
+                    checkDenied("mnemonic " + entry.getKey().getName(), mnemonic.getNode());
+                }
             }
         }
         // Scene accelerators are plain Runnables without a target node, so they cannot be matched to a pattern.

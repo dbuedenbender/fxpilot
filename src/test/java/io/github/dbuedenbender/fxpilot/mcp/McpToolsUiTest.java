@@ -172,6 +172,98 @@ class McpToolsUiTest {
     }
 
     @Test
+    void passwordFieldTextIsNotRecordedAndReplaysFromVariables() throws Exception {
+        Path plan = work.resolve("login.json");
+        ok("fx_record_start", "name", "login");
+        ok("fx_set_text", "selector", "password", "text", "s3cret-one");
+        ok("fx_type", "selector", "password", "text", "-two");
+        ok("fx_set_text", "selector", "#password", "text", "s3cret-one");
+        ok("fx_exec", "op", "textAction", "args", Map.of("selector", "password", "action", "append", "value", "!"));
+        ok("fx_set_text", "selector", "nameField", "text", "Sample Inc.");
+        String stopped = ok("fx_record_stop", "file", plan.toString());
+        String json = Files.readString(plan);
+        assertFalse(json.contains("s3cret") || json.contains("-two"), json);
+        assertEquals(List.of("password", "password2", "password3"), ((Map<?, ?>) Json.parse(json)).get("secrets"), json);
+        assertTrue(json.contains("Sample Inc."), "text of other fields stays in the plan: " + json);
+        assertTrue(stopped.contains("${password}"), stopped);
+
+        TestUi.show();
+        Map<String, Object> missing = call("fx_replay", "file", plan.toString(), "delayMs", 0,
+                "variables", Map.of("password", "a"));
+        assertEquals(true, missing.get("isError"));
+        assertTrue(Results.textOf(missing).contains("needs the password variable(s) password2, password3"),
+                Results.textOf(missing));
+        assertEquals("geheim", passwordText(), "nothing ran");
+
+        String replay = ok("fx_replay", "file", plan.toString(), "delayMs", 0,
+                "variables", Map.of("password", "a", "password2", "b", "password3", "c"));
+        assertTrue(replay.contains("passed=5"), replay);
+        assertEquals("ac", passwordText());
+    }
+
+    private static String passwordText() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<String> text = new java.util.concurrent.atomic.AtomicReference<>();
+        TestUi.onFx(() -> {
+            for (javafx.stage.Window w : javafx.stage.Window.getWindows()) {
+                javafx.scene.Node n = w.getScene() == null ? null : w.getScene().lookup("#password");
+                if (n instanceof javafx.scene.control.PasswordField) {
+                    text.set(((javafx.scene.control.PasswordField) n).getText());
+                }
+            }
+        });
+        return text.get();
+    }
+
+    @Test
+    void aReplayInsideARecordingAddsNoStrayAsserts() throws Exception {
+        Path plan = work.resolve("inner.json");
+        Files.writeString(plan, "{\"steps\":[{\"tool\":\"fx_click\",\"args\":{\"selector\":\"okButton\"}},"
+                + "{\"tool\":\"fx_assert\",\"args\":{\"selector\":\"okButton\"}}]}");
+        Path outer = work.resolve("outer.json");
+        ok("fx_record_start");
+        assertTrue(ok("fx_replay", "file", plan.toString(), "delayMs", 0).contains("status=PASS"));
+        ok("fx_record_stop", "file", outer.toString());
+        String json = Files.readString(outer);
+        assertFalse(json.contains("fx_assert"), "replayed asserts would check steps the plan does not contain: " + json);
+    }
+
+    @Test
+    void withoutDangerousPlansAndBaselinesAreOnlyReadBelowTheWorkingDirectory() throws Exception {
+        Path plan = work.resolve("outside.json");
+        Files.writeString(plan, "{\"steps\":[]}");
+        Path baseline = work.resolve("outside.png");
+        Files.write(baseline, new byte[]{1, 2, 3});
+        ToolCatalog.configure(ToolCatalog.Profile.ALL, false);
+        Map<String, Object> replay = call("fx_replay", "file", plan.toString());
+        assertEquals(true, replay.get("isError"));
+        assertTrue(Results.textOf(replay).contains("Reading"), Results.textOf(replay));
+        Map<String, Object> diff = call("fx_screenshot_diff", "selector", "okButton", "baseline", baseline.toString());
+        assertEquals(true, diff.get("isError"));
+        assertTrue(Results.textOf(diff).contains("Reading"), Results.textOf(diff));
+    }
+
+    @Test
+    void aSymbolicLinkCannotLeadAWriteOutOfTheWorkingDirectory() throws Exception {
+        Path link = Path.of("target", "mcp-test", "escape-link");
+        Files.createDirectories(link.getParent());
+        Files.deleteIfExists(link);
+        try {
+            Files.createSymbolicLink(link, work.toAbsolutePath());
+        } catch (UnsupportedOperationException | java.io.IOException | SecurityException e) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false, "symbolic links not available here: " + e);
+        }
+        try {
+            ToolCatalog.configure(ToolCatalog.Profile.ALL, false);
+            ok("fx_record_start");
+            Map<String, Object> r = call("fx_record_stop", "file", link.resolve("plan.json").toString());
+            assertEquals(true, r.get("isError"), Results.textOf(r));
+            assertFalse(Files.exists(work.resolve("plan.json")));
+        } finally {
+            Files.deleteIfExists(link);
+        }
+    }
+
+    @Test
     void aPlanThatReplaysItselfFailsInsteadOfRecursing() throws Exception {
         Path plan = work.resolve("loop.json");
         Files.writeString(plan, "{\"steps\":[{\"tool\":\"fx_replay\",\"args\":{\"file\":"

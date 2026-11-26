@@ -26,9 +26,11 @@ FxPilot is designed for local development and test automation:
 - Without a token, mutating requests need the `X-FxPilot-Client` header.
 - A token should be used when other users share the machine. `token=auto` generates one per start and hands it to the MCP server through a per-user token file.
 - `fxpilot.readonly=true` blocks mutating operations.
-- `fxpilot.deny` is an explicit lock for controls that must never be driven, including keys, accelerators (menu bars, MenuButtons, context menus), menu items, tabs, drag and drop and robot clicks that would reach them. Scene accelerators registered as plain `Runnable`s cannot be matched to a control.
-- `fxpilot.dangerous=false` disables WebView JavaScript, reflective setters, image file writes, closing windows and tabs, and reading the system clipboard. These are allowed by default in 1.x and will be opt-in in 2.0. `FXPILOT_DANGEROUS=false` on the MCP server also hides these tools and restricts the files it writes (plans, baselines, reports) to its working directory.
-- Request bodies are limited to 1 MB.
+- `fxpilot.deny` is an explicit lock for controls that must never be driven, including keys, accelerators (menu bars, MenuButtons, context menus), mnemonics, menu items, tabs, drag and drop and robot clicks that would reach them. Scene accelerators registered as plain `Runnable`s cannot be matched to a control.
+- `fxpilot.dangerous=false` disables WebView JavaScript, reflective setters, image file writes, closing windows and tabs, and reading the system clipboard. These are allowed by default in 1.x and will be opt-in in 2.0. `FXPILOT_DANGEROUS=false` on the MCP server also hides these tools and restricts the files it writes (plans, baselines, reports) and the plans and baselines it reads to its working directory; symbolic links are resolved first. The `--replay` CLI reads any plan the user names.
+- Request bodies are limited to 1 MB, and requests are handled by at most 8 threads.
+- With `token=auto` the token file is deleted on `stop()` and when the JVM ends.
+- A static `FXPILOT_TOKEN` goes to whatever process listens on the port in `FXPILOT_URL`. If another local user could bind that port first, prefer `token=auto`: the token file is owner-only and changes with every start.
 
 ## Threat model and secure defaults
 
@@ -40,7 +42,7 @@ Defaults in 1.x:
 
 | Setting | Default | Recommendation |
 |---|---|---|
-| bind address | `127.0.0.1` only | never expose it; reverse proxies are rejected by the `Host` check |
+| bind address | `127.0.0.1` only | never expose it; a reverse proxy is rejected by the `Host` check unless it forwards `Host: 127.0.0.1:<port>` |
 | endpoint token | none | `token=auto` when other users share the machine |
 | `fxpilot.readonly` | `false` | `true` for inspection-only sessions |
 | `fxpilot.dangerous` | `true` (opt-in in 2.0) | `false` unless the session needs it |
@@ -50,7 +52,7 @@ Defaults in 1.x:
 
 ## Powerful operations
 
-These operations are intentionally powerful and should only be available to trusted MCP clients. `fxpilot.dangerous=false` (and `FXPILOT_DANGEROUS=false` on the MCP server) turns off property setters, WebView JavaScript, image file writes and closing windows:
+These operations are intentionally powerful and should only be available to trusted MCP clients. `fxpilot.dangerous=false` (and `FXPILOT_DANGEROUS=false` on the MCP server) turns off property setters, WebView JavaScript, image file writes, closing windows and tabs, and reading the clipboard:
 
 - `fx_property` uses JavaFX bean reflection.
 - `fx_web` executes JavaScript inside a WebView.
@@ -62,4 +64,4 @@ The endpoint is meant for the local machine only. Do not expose it to other mach
 
 ## Sensitive data
 
-`PasswordField` text is never returned: snapshots show `***`, only text-independent properties can be read, text selectors do not match it and error messages leave it out, but recorded replay plans can contain typed text, including passwords. Treat plans as sensitive data and keep them out of version control or redact them.
+`PasswordField` text is never returned: snapshots show `***`, only text-independent properties can be read, text selectors do not match it and error messages leave it out, and recorded replay plans store `${name}` variables instead of text entered into a PasswordField with `fx_set_text`, `fx_type`, `fx_text` or `fx_exec`. Single keys sent with `fx_press_key`, clipboard content and text typed into other fields are recorded as they are, so still treat plans as sensitive data.

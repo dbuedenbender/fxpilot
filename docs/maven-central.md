@@ -70,6 +70,10 @@ The workflow refuses to publish when the tag (`v1.0.1`) and `project.version` (`
 2. Review the deployment.
 3. Publish the release.
 
+## 7. Update the launcher scripts
+
+`scripts/fxpilot-mcp.cmd`, `scripts/fxpilot-mcp.sh` and `scripts/fxpilot-jar.ps1` download the default version and check it against a SHA-256 stored in the script. Once the release is on Maven Central, set the new version and the content of `fxpilot-<version>.jar.sha256` from Maven Central in all three files. `LauncherScriptsTest` fails if they differ.
+
 ## Local signing test
 
 ```bash

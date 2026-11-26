@@ -31,13 +31,8 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
       - name: Maven ${{ matrix.goal }}
-        run: |
-          for attempt in 1 2 3; do
-            mvn -B ${{ matrix.goal }} && exit 0
-            echo "Maven failed (attempt ${attempt}), retrying..."
-            sleep 15
-          done
-          exit 1
+        # retries download failures only; a failing test fails the job at once
+        run: bash .github/retry-downloads.sh mvn -B ${{ matrix.goal }}
 
   examples:
     runs-on: ubuntu-latest
@@ -51,10 +46,23 @@ jobs:
       - name: Build the example apps and replay their plans headless
         # installs the current fxpilot first, so the examples build against it before it is on Maven Central;
         # runs demo-app on the class path and modular-demo on the module path (Monocle, no display needed)
-        run: |
-          for attempt in 1 2 3; do
-            mvn -B -DskipTests install && bash examples/replay-headless.sh && exit 0
-            echo "Examples failed (attempt ${attempt}), retrying..."
-            sleep 15
-          done
-          exit 1
+        run: bash .github/retry-downloads.sh bash -c "mvn -B -DskipTests install && bash examples/replay-headless.sh"
+
+  jdk11:
+    # The jar targets Java 11, but the tests need JDK 21 (Monocle 21); this runs the built MCP server on JDK 11.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Build the jar
+        run: bash .github/retry-downloads.sh mvn -B -DskipTests package
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Start the MCP server on JDK 11
+        run: bash .github/mcp-smoke.sh -jar target/fxpilot.jar

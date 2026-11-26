@@ -31,7 +31,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -57,7 +59,10 @@ public final class FxPilotServer {
     private static final int MAX_BODY_BYTES = 1 << 20;
 
     private final HttpServer server;
+    private static final int MAX_HTTP_THREADS = 8;
+
     private final ExecutorService executor;
+    private Thread tokenCleanup;
     private final String token;
     private final boolean tokenFile;
     private final boolean readOnly;
@@ -67,11 +72,15 @@ public final class FxPilotServer {
         this.token = tokenFile ? TokenFile.generate() : token;
         this.readOnly = Boolean.parseBoolean(config("fxpilot.readonly", "FXPILOT_READONLY"));
         this.server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
-        this.executor = Executors.newCachedThreadPool(r -> {
-            Thread t = new Thread(r, "fxpilot-http");
-            t.setDaemon(true);
-            return t;
-        });
+        // bounded: UI work is serialized on the FX thread anyway, and a client must not create threads without limit
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(MAX_HTTP_THREADS, MAX_HTTP_THREADS, 30, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(64), r -> {
+                    Thread t = new Thread(r, "fxpilot-http");
+                    t.setDaemon(true);
+                    return t;
+                }, new ThreadPoolExecutor.CallerRunsPolicy());
+        pool.allowCoreThreadTimeOut(true);
+        this.executor = pool;
         server.setExecutor(executor);
         server.createContext("/", this::handle);
     }
@@ -117,6 +126,9 @@ public final class FxPilotServer {
             System.err.println("[fxpilot] invalid port '" + port + "' (must be 0..65535)");
             return;
         }
+        if (!JavaFxCheck.supported()) {
+            return;
+        }
         try {
             instance = new FxPilotServer(port, token);
             DenyList.setDenyPatterns(parsePatterns(config("fxpilot.deny", "FXPILOT_DENY")));
@@ -126,6 +138,10 @@ public final class FxPilotServer {
             int bound = instance.server.getAddress().getPort();
             if (instance.tokenFile) {
                 System.err.println("[fxpilot] token written to " + TokenFile.write(bound, instance.token));
+                // agent mode never calls stop(), so the token file goes away when the JVM ends
+                Thread cleanup = new Thread(() -> TokenFile.delete(bound), "fxpilot-token-cleanup");
+                Runtime.getRuntime().addShutdownHook(cleanup);
+                instance.tokenCleanup = cleanup;
             }
             System.err.println("[fxpilot] listening on http://127.0.0.1:" + bound);
         } catch (IOException | IllegalArgumentException e) {
@@ -157,6 +173,13 @@ public final class FxPilotServer {
         if (instance != null) {
             if (instance.tokenFile) {
                 TokenFile.delete(instance.server.getAddress().getPort());
+            }
+            if (instance.tokenCleanup != null) {
+                try {
+                    Runtime.getRuntime().removeShutdownHook(instance.tokenCleanup);
+                } catch (IllegalStateException e) {
+                    // the JVM is already shutting down; the hook deletes the file anyway
+                }
             }
             instance.server.stop(0);
             instance.executor.shutdownNow();
@@ -345,7 +368,8 @@ public final class FxPilotServer {
             sendError(ex, e.status, e.code, e.getMessage());
         } catch (NumberFormatException e) {
             sendError(ex, 400, Codes.INVALID_NUMBER, "invalid number: " + e.getMessage());
-        } catch (Exception e) {
+        } catch (Exception | LinkageError | StackOverflowError e) {
+            // an Error would otherwise close the connection without any response
             sendError(ex, 500, Codes.INTERNAL_ERROR, e.toString());
         } finally {
             ex.close();

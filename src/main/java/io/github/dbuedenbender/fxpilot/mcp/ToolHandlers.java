@@ -193,12 +193,20 @@ final class ToolHandlers {
         return exec("contextMenuItem", args, base);
     }
 
+    /** Requests are handled one at a time, so a wait must not block the server (and ping) for long. */
+    static final long MAX_TIMEOUT_MS = 120_000;
+
+    static long timeoutMs(Map<String, Object> a) {
+        long timeout = a.get("timeoutMs") instanceof Number ? ((Number) a.get("timeoutMs")).longValue() : 5000;
+        return Math.max(0, Math.min(MAX_TIMEOUT_MS, timeout));
+    }
+
     static Map<String, Object> waitForWindow(Map<String, Object> a, String base) throws Exception {
         String title = Results.str(a.get("title"));
         if (title == null || title.isBlank()) {
             throw new RpcError(-32602, "title is required");
         }
-        long timeout = a.get("timeoutMs") instanceof Number ? ((Number) a.get("timeoutMs")).longValue() : 5000;
+        long timeout = timeoutMs(a);
         long end = System.currentTimeMillis() + Math.max(0, timeout);
         String last = "";
         while (true) {
@@ -254,6 +262,8 @@ final class ToolHandlers {
                 result = "fx_batch".equals(tool)
                         ? Results.toolError("nested fx_batch is not supported")
                         : ToolCatalog.callTool(tool, args);
+            } catch (InterruptedException e) {
+                throw e; // the client cancelled the batch
             } catch (Exception e) {
                 result = Results.toolError(tool + " failed: " + e);
             }
@@ -290,6 +300,8 @@ final class ToolHandlers {
         Path baseline = Path.of(String.valueOf(baselineArg));
         if (Boolean.TRUE.equals(a.get("update")) || !Files.exists(baseline)) {
             ToolCatalog.writablePath(baseline.toString());
+        } else {
+            ToolCatalog.readablePath(baseline.toString());
         }
         boolean update = Boolean.TRUE.equals(a.get("update"));
         double tolerance = a.get("tolerance") instanceof Number ? ((Number) a.get("tolerance")).doubleValue() : 0.01;
@@ -354,7 +366,7 @@ final class ToolHandlers {
     }
 
     static Map<String, Object> waitFor(Map<String, Object> a, String base) throws Exception {
-        long timeout = a.get("timeoutMs") instanceof Number ? ((Number) a.get("timeoutMs")).longValue() : 5000;
+        long timeout = timeoutMs(a);
         long started = System.currentTimeMillis();
         long end = started + Math.max(0, timeout);
         List<String> problems = List.of("no attempt yet");

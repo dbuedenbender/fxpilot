@@ -171,7 +171,7 @@ final class ContentOps {
 
     static void mediaAction(Node node, Map<String, String> p) {
         Object player = Reflect.invokeOptional(node, "getMediaPlayer");
-        if (player == Reflect.NoValue.INSTANCE) {
+        if (player == Reflect.NoValue.INSTANCE || player == null) {
             throw new FxPilotException(400, Codes.MEDIA_NOT_AVAILABLE, Selectors.typeName(node) + " has no MediaPlayer");
         }
         String action = Params.opt(p, "action", "status");

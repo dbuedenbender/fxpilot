@@ -58,6 +58,20 @@ class RecorderReplayTest {
     }
 
     @Test
+    void planWithPasswordVariablesNeedsThemBeforeAnyStepRuns() throws Exception {
+        Path path = write("login.json", "{\"secrets\":[\"pw\"],\"steps\":["
+                + "{\"tool\":\"fx_set_text\",\"args\":{\"selector\":\"pw\",\"text\":\"${pw}\"}}]}");
+        Map<String, Object> result = Recorder.replay(Map.of("file", path.toString(), "port", 1));
+        assertEquals(true, result.get("isError"));
+        assertTrue(Results.textOf(result).contains("needs the password variable(s) pw"), Results.textOf(result));
+        assertFalse(Results.textOf(result).contains("step 1"), "no step ran: " + Results.textOf(result));
+
+        assertEquals(1, Recorder.replayMain(new String[] {"--replay", path.toString(), "--port", "1"}), "CLI fails");
+        assertEquals(0, Recorder.replayMain(new String[] {"--replay", write("none.json",
+                "{\"secrets\":[\"pw\"],\"steps\":[]}").toString(), "--var", "pw=x"}), "--var supplies it");
+    }
+
+    @Test
     void planMustContainAStepsArray() throws Exception {
         Map<String, Object> result = Recorder.replay(Map.of("file", write("no-steps.json", "{\"name\":\"x\"}").toString()));
         assertEquals(true, result.get("isError"));
@@ -175,6 +189,12 @@ class RecorderReplayTest {
 
         assertEquals(0, code);
         assertTrue(Files.exists(report), "the JUnit report is written even for an empty plan");
+    }
+
+    @Test
+    void replayMainRejectsUnknownOptions() throws Exception {
+        assertEquals(2, Recorder.replayMain(new String[]{
+                "--replay", write("typo.json", "{\"steps\":[]}").toString(), "--prot", "9000"}));
     }
 
     @Test

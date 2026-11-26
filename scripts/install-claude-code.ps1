@@ -1,23 +1,21 @@
 param(
-    [string]$Version = "1.1.0",
+    [string]$Version = "",
+    [string]$Sha256 = "",
     [string]$Url = "http://127.0.0.1:8765",
     [string]$Token = ""
 )
 
 $ErrorActionPreference = "Stop"
-$cacheDir = Join-Path $env:LOCALAPPDATA "FxPilot"
-$jar = Join-Path $cacheDir "fxpilot-$Version.jar"
-$downloadUrl = "https://repo1.maven.org/maven2/io/github/dbuedenbender/fxpilot/$Version/fxpilot-$Version.jar"
+. (Join-Path $PSScriptRoot "fxpilot-jar.ps1")
+if (-not $Version) {
+    $Version = $FxPilotDefaultVersion
+}
 
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
     throw "Claude Code CLI ('claude') is not installed or not on PATH."
 }
 
-New-Item -ItemType Directory -Force $cacheDir | Out-Null
-if (-not (Test-Path $jar)) {
-    Write-Host "[fxpilot] downloading $downloadUrl"
-    Invoke-WebRequest -Uri $downloadUrl -OutFile $jar -UseBasicParsing
-}
+$jar = Get-FxPilotJar -Version $Version -Sha256 $Sha256
 
 $remove = @("mcp", "remove", "--scope", "user", "fxpilot")
 & claude @remove 2>$null | Out-Null

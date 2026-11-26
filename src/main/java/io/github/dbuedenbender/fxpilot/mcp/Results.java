@@ -57,7 +57,7 @@ final class Results {
     @SuppressWarnings("unchecked")
     static Map<String, Object> asMap(Object o) {
         if (!(o instanceof Map)) {
-            throw new RpcError(-32600, "expected JSON object");
+            throw new RpcError(-32602, "Invalid params: expected a JSON object");
         }
         return (Map<String, Object>) o;
     }

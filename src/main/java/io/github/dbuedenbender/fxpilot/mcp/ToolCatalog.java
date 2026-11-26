@@ -17,6 +17,11 @@ package io.github.dbuedenbender.fxpilot.mcp;
 
 import io.github.dbuedenbender.fxpilot.internal.Json;
 
+import java.io.IOException;
+import java.net.ConnectException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -300,7 +305,7 @@ final class ToolCatalog {
                 + "visual regression; passing checks are recorded and replayed.", diff, "baseline"));
 
         Map<String, Object> wait = selectorProps("Target node");
-        wait.put("timeoutMs", prop("integer", "Default 5000"));
+        wait.put("timeoutMs", prop("integer", "Default 5000, at most 120000"));
         wait.put("text", prop("string", "Wait until text equals this"));
         wait.put("value", prop("string", "Wait until value equals this"));
         wait.put("count", prop("integer", "Wait until this many nodes match"));
@@ -323,7 +328,7 @@ final class ToolCatalog {
         t.add(tool("fx_wait_for_window", Profile.STANDARD, Kind.READ, NOT_RECORDED,
                 (a, base) -> ToolHandlers.waitForWindow(a, base),
                 "Wait until a window with a matching title exists.",
-                props("title", "string", "Window title (contains, case-insensitive)", "timeoutMs", "integer", "Default 5000"),
+                props("title", "string", "Window title (contains, case-insensitive)", "timeoutMs", "integer", "Default 5000, at most 120000"),
                 "title"));
 
         Map<String, Object> assertion = selectorProps("Target node");
@@ -590,16 +595,51 @@ final class ToolCatalog {
      * Path for a file the MCP server writes (plans, baselines, diffs, reports). With FXPILOT_DANGEROUS=false
      * it must lie below the working directory, so a client cannot write anywhere on the disk.
      */
-    static java.nio.file.Path writablePath(String raw) {
-        java.nio.file.Path path = java.nio.file.Path.of(raw);
-        if (!dangerousAllowed) {
-            java.nio.file.Path cwd = java.nio.file.Path.of("").toAbsolutePath().normalize();
-            if (!path.toAbsolutePath().normalize().startsWith(cwd)) {
-                throw new ToolError("Writing '" + raw + "' is not allowed: with FXPILOT_DANGEROUS=false files must lie below "
+    static Path writablePath(String raw) {
+        return confined(raw, "Writing");
+    }
+
+    /** Path for a file a tool reads (plans, screenshot baselines); same rule as {@link #writablePath}. */
+    static Path readablePath(String raw) {
+        return confined(raw, "Reading");
+    }
+
+    /**
+     * Symbolic links are resolved for the part of the path that exists, so a link below the working
+     * directory cannot point the write or read elsewhere. The resolved path is returned, so the file
+     * operation uses the path that was checked, not one whose links could still change in between.
+     */
+    private static Path confined(String raw, String verb) {
+        Path path = Path.of(raw);
+        if (dangerousAllowed) {
+            return path;
+        }
+        try {
+            Path cwd = Path.of("").toAbsolutePath().toRealPath();
+            Path real = realPath(path.toAbsolutePath().normalize());
+            if (!real.startsWith(cwd)) {
+                throw new ToolError(verb + " '" + raw + "' is not allowed: with FXPILOT_DANGEROUS=false files must lie below "
                         + cwd);
             }
+            return real;
+        } catch (IOException e) {
+            throw new ToolError(verb + " '" + raw + "' is not allowed: " + e.getMessage());
         }
-        return path;
+    }
+
+    private static Path realPath(Path absolute) throws IOException {
+        Path existing = absolute;
+        Path rest = null;
+        while (existing != null && !Files.exists(existing, LinkOption.NOFOLLOW_LINKS)) {
+            Path name = existing.getFileName();
+            rest = rest == null ? name : name.resolve(rest);
+            existing = existing.getParent();
+        }
+        if (existing == null) {
+            return absolute;
+        }
+        Path real = existing.toRealPath();
+        return rest == null ? real : real.resolve(rest).normalize();
     }
 
     /** FXPILOT_DANGEROUS check without the profile check, for replayed steps; null when allowed. */
@@ -623,12 +663,12 @@ final class ToolCatalog {
             return Results.toolError(ex.getMessage());
         } catch (Json.ParseException ex) {
             return Results.toolError("Invalid JSON: " + ex.getMessage());
-        } catch (java.net.ConnectException ex) {
+        } catch (ConnectException ex) {
             return Results.toolError("Cannot reach the app at " + base + ". Start it with the FxPilot endpoint enabled "
                     + "(-Dfxpilot.port=<port> or -javaagent:fxpilot.jar=port=<port>).");
         } catch (HttpFailure ex) {
             return Results.toolError(ex.getMessage());
-        } catch (java.io.IOException ex) {
+        } catch (IOException ex) {
             return Results.toolError("I/O error talking to " + base + ": " + ex);
         }
     }

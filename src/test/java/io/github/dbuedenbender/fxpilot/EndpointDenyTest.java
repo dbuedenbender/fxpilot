@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.github.dbuedenbender.fxpilot.EndpointHttp.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@code fxpilot.deny} must hold for every way of triggering a control, not only for direct clicks.
@@ -31,7 +32,7 @@ class EndpointDenyTest extends UiTestBase {
 
     @Override
     void configure() {
-        System.setProperty("fxpilot.deny", "#deleteAll,text=Wipe,#nuke,#lockedTab");
+        System.setProperty("fxpilot.deny", "#deleteAll,text=Wipe,#nuke,#lockedTab,#purge");
     }
 
     @Test
@@ -62,6 +63,16 @@ class EndpointDenyTest extends UiTestBase {
     void acceleratorOfADeniedMenuItemIsDenied() throws Exception {
         assertError(post("/exec", "op", "hotkey", "keys", "CTRL+W"), 403, "NODE_DENIED");
         ok("/exec", "op", "hotkey", "keys", "CTRL+S");
+        assertEquals("", status());
+    }
+
+    @Test
+    void mnemonicOfADeniedButtonIsDenied() throws Exception {
+        // FxPilot's key events carry no text and so do not fire mnemonics today; the check holds even if they did
+        assertTrue(FxThread.query(() -> !Selectors.find("nameField").getScene().getMnemonics().isEmpty()),
+                "the skin registers the mnemonic of _Purge");
+        assertError(post("/exec", "op", "hotkey", "selector", "nameField", "keys", "ALT+P"), 403, "NODE_DENIED");
+        assertError(post("/key", "selector", "nameField", "key", "P", "modifiers", "ALT"), 403, "NODE_DENIED");
         assertEquals("", status());
     }
 

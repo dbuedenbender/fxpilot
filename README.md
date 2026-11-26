@@ -12,7 +12,7 @@ Claude Code ──stdio/MCP──> fxpilot.jar (MCP server) ──HTTP 127.0.0.1
 
 - `fxpilot.jar` contains both sides: `java -jar fxpilot.jar` starts the MCP server, and `-javaagent:fxpilot.jar` (or a Maven dependency) starts the HTTP endpoint inside the app.
 
-Requirements: JDK 11 or newer, JavaFX 11 or newer. The app only needs `javafx-controls`; `javafx-web` and `javafx-swing` are optional. If JavaFX is missing or older than 11, the endpoint does not start and logs the reason to stderr. With `-javaagent`, the toolkit is usually not running yet when the agent starts, so only the presence of JavaFX is checked there.
+Requirements: JDK 11 or newer, JavaFX 11 or newer. The jar is compiled for Java 11 (`--release 11`); CI builds it on JDK 17, runs the tests on JDK 21 and starts the MCP server from the built jar on JDK 11; the endpoint inside a JavaFX app is not tested on a JDK 11 runtime. The app only needs `javafx-controls`; `javafx-web` and `javafx-swing` are optional. If JavaFX is missing or older than 11, the endpoint does not start and logs the reason to stderr. With `-javaagent`, the toolkit is usually not running yet when the agent starts, so only the presence of JavaFX is checked there.
 
 > **Modular apps:** `fxpilot.jar` is the JPMS module `io.github.dbuedenbender.fxpilot`, which exports `io.github.dbuedenbender.fxpilot` (`FxPilotServer`, `FxPilotAgent`) and `io.github.dbuedenbender.fxpilot.mcp` (`FxPilotMcpServer`). A modular app puts the jar on the module path and adds `requires io.github.dbuedenbender.fxpilot;`; the module brings `jdk.httpserver` along. If a modular app keeps FxPilot on the class path instead, start it with `--add-modules jdk.httpserver`. The package `io.github.dbuedenbender.fxpilot.internal` is shared code between endpoint and MCP server; it is not exported and not part of the API, even though its classes are public on the class path. FxPilot needs no `opens` from the app; only `fx_property` on the app's own classes needs their package exported to `io.github.dbuedenbender.fxpilot` (otherwise 403 `PROPERTY_NOT_ACCESSIBLE`). [`examples/modular-demo`](examples/modular-demo/) shows the setup.
 
@@ -100,7 +100,9 @@ public void stop() throws Exception {
 }
 ```
 
-The endpoint is only active with the VM option `-Dfxpilot.port=8765`. With `javafx-maven-plugin`, a separate execution works well:
+The endpoint is only active with the VM option `-Dfxpilot.port=8765`. All settings (port, token, deny, read-only, dangerous) are read from system properties or environment variables when the endpoint starts and apply to the whole process; to set them in code, call `System.setProperty("fxpilot.deny", "#deleteAll")` and so on before `startIfEnabled()`.
+
+With `javafx-maven-plugin`, a separate execution works well:
 
 ```xml
 <execution>
@@ -147,7 +149,7 @@ MCP server (`java -jar fxpilot.jar`):
 | `FXPILOT_TOKEN` | Token for the endpoint in `FXPILOT_URL`. Other ports (the `port` argument) use their token file (`token=auto`), so the token never goes to a service the client merely named. |
 | `FXPILOT_TOKEN_DIR` | Directory of the token files, same default as the endpoint |
 | `FXPILOT_TOOLS` | Tool profile: `core`, `standard` or `all` (default), see [Tool profiles](#tool-profiles) |
-| `FXPILOT_DANGEROUS` | `false` hides `fx_web`, `fx_property` and `fx_image`, rejects `fx_window` close and dangerous `fx_exec` operations, and lets the MCP server write plans, baselines and reports only below its working directory |
+| `FXPILOT_DANGEROUS` | `false` hides `fx_web`, `fx_property` and `fx_image`, rejects closing windows and tabs, reading the clipboard and dangerous `fx_exec` operations, and lets the MCP server write plans, baselines and reports and read plans and baselines only below its working directory (symbolic links resolved) |
 
 ## Several apps at once
 
@@ -166,7 +168,7 @@ Each app gets its own port. By default, the global MCP server talks to the port 
 | `fx_click`                | Fires a button or simulates a mouse click                                          |
 | `fx_hover`                | Fires mouse-enter/move events to trigger hover handlers and `:hover` CSS           |
 | `fx_set_text` / `fx_type` | Sets text, or types it character by character (fires `onKeyReleased`)              |
-| `fx_press_key`            | Sends a key, e.g. `ENTER`, `TAB`, `ESCAPE`; without selector to the focused node   |
+| `fx_press_key`            | Sends a key, e.g. `ENTER`, `TAB`, `ESCAPE`, `A`, `DIGIT1`; without selector to the focused node. Letters, digits and `SPACE` also type their character; use `fx_type` for text |
 | `fx_select`               | Selects an entry in a ComboBox, ChoiceBox, ListView, TableView, TreeView, TreeTableView or TabPane |
 | `fx_set_expanded`         | Expands or collapses an item in a TreeView/TreeTableView                            |
 | `fx_set_value`            | Sets a Slider, Spinner, DatePicker (`2026-11-18`) or ColorPicker (`#ff0000`)        |
@@ -243,7 +245,7 @@ fx_click_menu(menu="File", item="Save as...")
 fx_set_expanded(selector="orderTree", value="Order 1001 | open")
 fx_select(selector="orderTree", value="Order 1001 | open")
 fx_click(selector="role=button", within="#dialog", nth=1)
-fx_wait_for(selector="statusLabel", text="Saved", timeoutMs=5000)
+fx_wait_for(selector="statusLabel", text="Saved", timeoutMs=5000)   # at most 120000
 fx_screenshot_diff(selector="#statusPane", baseline="fxpilot/status.png", tolerance=0.005)
 ```
 
@@ -305,6 +307,8 @@ java -jar fxpilot.jar --replay fxpilot\checkout.json --var customer="Sample Inc.
 
 `--var key=value` replaces `${key}` in step arguments, `--retry` retries a failing step, `--screenshot-on-failure` writes `fxpilot/failure-step-N.png`, and `--report` writes a JUnit XML file.
 
+Text entered into a `PasswordField` with `fx_set_text`, `fx_type`, `fx_text` or `fx_exec` is not written to the plan. The recording stores `${<fx:id>}` instead (`${password}` if the field has no usable id, `${password2}` for a second, different text) and lists these names under `secrets`. A replay without all of them fails before the first step: pass them with `--var password=...` or `fx_replay(variables={"password": "..."})`.
+
 - Recorded are mutating tools (`fx_click`, `fx_set_text`, `fx_select`, `fx_set_value`, `fx_press_key`, ...), `fx_wait_for`, `fx_screenshot_diff` and passing `fx_assert` calls. Reads and plain screenshots are not recorded.
 - The plan stores selectors and arguments, not node references, so it survives UI rebuilds as long as the selectors stay valid. If an `fx:id` changes, re-record.
 - The `port` argument is not recorded, so one plan runs against any app instance; `--port` overrides the target for replay.
@@ -358,14 +362,14 @@ Every error response carries a stable `code` next to the human-readable message:
 - Without a port, no endpoint starts. Production launches are unaffected as long as the VM option is absent.
 - The endpoint binds to `127.0.0.1` only.
 - It only answers requests whose `Host` header is `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>` and that carry no `Origin` header. Binding to loopback alone does not keep web pages out: a page on a domain that resolves to `127.0.0.1` (DNS rebinding) is same-origin with the endpoint. Browsers always send that domain in `Host`, so the check rejects them with 403 `HOST_REJECTED`. FxPilot 1.0.0 lacks this check, so update to 1.1.0 or set a token.
-- A token is optional, but recommended. `token=auto` generates a random token per start and writes it to `%LOCALAPPDATA%\FxPilot\ports\<port>.token` (Windows) or `~/.fxpilot/ports/<port>.token` (owner-only permissions on Linux and macOS); the MCP server reads it from there and the endpoint deletes it on `stop()`. The token is sent in `X-FxPilot-Token` and compared in constant time.
+- A token is optional, but recommended. `token=auto` generates a random token per start and writes it to `%LOCALAPPDATA%\FxPilot\ports\<port>.token` (Windows) or `~/.fxpilot/ports/<port>.token` (owner-only permissions on Linux and macOS); the MCP server reads it from there and the endpoint deletes it on `stop()` or, in agent mode, when the JVM ends. The token is sent in `X-FxPilot-Token` and compared in constant time.
 - Without a token, every POST needs the header `X-FxPilot-Client: <anything>`. The MCP server sends it automatically. If you call the endpoint with curl yourself, add `-H "X-FxPilot-Client: curl"`.
 - Request bodies are limited to 1 MB.
 - Mark buttons with real side effects (printing, database, machine control) with `setNotes()` or `fxpilot.notes`. Claude reads these hints through `fx_health`; they are not a technical lock.
 - `-Dfxpilot.readonly=true` rejects every action (POST) with 403 `READ_ONLY`; queries and screenshots keep working.
-- `-Dfxpilot.deny=#deleteAll,.danger,text=Wipe` is a real lock: actions on matching nodes or one of their ancestors fail with 403 `NODE_DENIED`. It also covers the indirect ways to trigger a control: keys sent to a denied focus owner, ENTER/ESCAPE when a denied button is the default/cancel button, accelerators of denied menu items in menu bars, MenuButtons and the context menus of controls, tabs and table columns, menu and context-menu items (matched by `#id`, `.styleClass` or `text=`), tabs (also by `#id`, `.styleClass` or `text=`), drag and drop, dialog buttons fired by `fx_window accept|dismiss`, and robot clicks at the coordinates of a denied node in any window at that screen position. Robot clicks outside the target window's scene, and coordinates that are not finite numbers, are always rejected (400), because the robot moves the real mouse. Scene accelerators registered as plain `Runnable`s have no target node and cannot be matched.
-- `-Dfxpilot.dangerous=false` disables the escape hatches with 403 `DANGEROUS_DISABLED`: JavaScript in a WebView (`fx_web` execute), reflective setters (`fx_property` set), file writes (`fx_image`), closing windows and tabs, and reading the system clipboard. `FXPILOT_DANGEROUS=false` on the MCP server also hides these tools. They are still allowed by default in 1.x; set `fxpilot.dangerous=false` wherever the app controls real equipment or data.
-- `PasswordField` text is never returned: node snapshots show `***`, `fx_property` reads only text-independent properties of a PasswordField (`editable`, `promptText`, `disable` ...; everything else, including custom values, gives 403 `NODE_DENIED`), `text=`/`text*=` selectors do not match it and error messages leave it out. Recorded plans still contain the text that was typed; keep them out of version control or redact them.
+- `-Dfxpilot.deny=#deleteAll,.danger,text=Wipe` is a real lock: actions on matching nodes or one of their ancestors fail with 403 `NODE_DENIED`. It also covers the indirect ways to trigger a control: keys sent to a denied focus owner, ENTER/ESCAPE when a denied button is the default/cancel button, accelerators of denied menu items in menu bars, MenuButtons and the context menus of controls, tabs and table columns, mnemonics (ALT+underlined letter) of denied controls, menu and context-menu items (matched by `#id`, `.styleClass` or `text=`), tabs (also by `#id`, `.styleClass` or `text=`), drag and drop, dialog buttons fired by `fx_window accept|dismiss`, and robot clicks at the coordinates of a denied node in any window at that screen position. Robot clicks outside the target window's scene, and coordinates that are not finite numbers, are always rejected (400), because the robot moves the real mouse. Scene accelerators registered as plain `Runnable`s have no target node and cannot be matched.
+- `-Dfxpilot.dangerous=false` disables the escape hatches with 403 `DANGEROUS_DISABLED`: JavaScript in a WebView (`fx_web` execute, query, html and click), reflective setters (`fx_property` set), file writes (`fx_image`), closing windows and tabs, and reading the system clipboard. `FXPILOT_DANGEROUS=false` on the MCP server also hides these tools. They are still allowed by default in 1.x; set `fxpilot.dangerous=false` wherever the app controls real equipment or data.
+- `PasswordField` text is never returned: node snapshots show `***`, `fx_property` reads only text-independent properties of a PasswordField (`editable`, `promptText`, `disable` ...; everything else, including custom values, gives 403 `NODE_DENIED`), `text=`/`text*=` selectors do not match it and error messages leave it out. Recorded plans replace text entered into a PasswordField with a variable (see [Record & Replay](#record--replay)); single keys sent with `fx_press_key` and clipboard content are still recorded as they are.
 - If a handler opens a modal dialog, the action returns `status: pending`. The dialog then shows up in `fx_list_windows` and can be operated normally, e.g. with `fx_click` on `text=OK`.
 
 ## What FxPilot does not do
@@ -405,7 +409,7 @@ java -jar fxpilot.jar --replay plan.json  :: replay a recorded plan in CI
 
 The code compiles against JavaFX 11, the oldest supported version. The UI tests start a real scene graph headless with Monocle on JavaFX 21, because JavaFX 11 crashes in its native font code on current JDKs; running the tests therefore needs **JDK 21**. CI builds the library with JDK 17 (`-DskipTests clean package`) and runs the full suite with JDK 21, so both cases stay covered. On a JDK 17 machine set `JAVA_HOME` to a JDK 21 for `mvn verify`; otherwise the UI tests fail with `UnsupportedClassVersionError`.
 
-The compiler runs with `-Xlint:all -Werror`, so a warning fails the build; fix warnings instead of suppressing them. `mvn verify` fails if the line coverage of a package drops below 60 % (75 % for the MCP package; JaCoCo report in `target/site/jacoco`). Extra JVM options for the tests go into `-Dsurefire.jvmArgs=...`.
+The compiler runs with `-Werror` and an explicit list of `-Xlint` categories (see `pom.xml`), so a warning fails the build; fix warnings instead of suppressing them. `mvn verify` fails if the line coverage of a package drops below 60 % (75 % for the MCP package; JaCoCo report in `target/site/jacoco`). Extra JVM options for the tests go into `-Dsurefire.jvmArgs=...`.
 
 The MCP server is part of the jar, so `mvn verify` compiles and tests it.
 

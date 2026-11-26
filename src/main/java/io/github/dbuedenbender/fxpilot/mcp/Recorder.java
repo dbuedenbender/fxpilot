@@ -36,6 +36,11 @@ final class Recorder {
     private static List<Object> recording;
     private static String recordingName;
     private static String recordingStartedAt;
+    /** Variable name per PasswordField and typed text (node ref + NUL + text) that the recording replaced. */
+    private static Map<String, String> secrets;
+
+    /** Arguments that carry the text an action puts into its target node. */
+    private static final List<String> TEXT_ARGS = List.of("text", "value");
 
     private Recorder() {
     }
@@ -46,7 +51,8 @@ final class Recorder {
         }
         Object name = a.get("name");
         recording = new ArrayList<>();
-        recordingName = name == null || String.valueOf(name).isBlank() ? "recording" : String.valueOf(name);
+        secrets = new LinkedHashMap<>();
+        recordingName =name == null || String.valueOf(name).isBlank() ? "recording" : String.valueOf(name);
         recordingStartedAt = Instant.now().toString();
         return Results.text("Recording '" + recordingName + "' started. Mutating tools and passing fx_assert calls are "
                 + "captured; fx_record_stop returns or writes the JSON plan.");
@@ -62,6 +68,11 @@ final class Recorder {
         plan.put("fxpilot", FxPilotMcpServer.VERSION);
         plan.put("name", recordingName);
         plan.put("createdAt", recordingStartedAt);
+        List<String> secretNames = new ArrayList<>(new LinkedHashSet<>(secrets.values()));
+        secrets = null; // its keys hold the typed passwords
+        if (!secretNames.isEmpty()) {
+            plan.put("secrets", secretNames);
+        }
         plan.put("steps", steps);
         Object override = a.get("name");
         if (override != null && !String.valueOf(override).isBlank()) {
@@ -78,17 +89,89 @@ final class Recorder {
         }
         Files.writeString(path, json, StandardCharsets.UTF_8);
         return Results.text("Recording '" + plan.get("name") + "' stopped: " + steps.size()
-                + " step(s) written to " + path.toAbsolutePath());
+                + " step(s) written to " + path.toAbsolutePath() + secretsHint(secretNames));
+    }
+
+    private static String secretsHint(List<String> names) {
+        if (names.isEmpty()) {
+            return "";
+        }
+        return ". Text typed into password fields is not stored; the plan uses ${" + String.join("}, ${", names)
+                + "} instead. Pass the values on replay (fx_replay variables or --var " + names.get(0) + "=...).";
     }
 
     static void recordStep(String tool, Map<String, Object> args, Map<String, Object> result) {
         if (recording == null || Boolean.TRUE.equals(result.get("isError")) || !ToolCatalog.isRecorded(tool)) {
             return;
         }
+        Map<String, Object> recorded = copyArgs(args);
+        Map<?, ?> passwordField = passwordFieldOf(result);
+        if (passwordField != null) {
+            redact(recorded, "${" + secretName(passwordField, firstText(recorded)) + "}");
+        }
         Map<String, Object> step = new LinkedHashMap<>();
         step.put("tool", tool);
-        step.put("args", copyArgs(args));
+        step.put("args", recorded);
         recording.add(step);
+    }
+
+    /**
+     * The target node from an action result when it is a PasswordField; the endpoint marks those as
+     * {@code redacted} and never returns their text.
+     */
+    private static Map<?, ?> passwordFieldOf(Map<String, Object> result) {
+        Object body;
+        try {
+            body = Json.parse(Results.textOf(result));
+        } catch (RuntimeException e) {
+            return null; // not every tool answers with JSON
+        }
+        Object node = body instanceof Map ? ((Map<?, ?>) body).get("node") : null;
+        return node instanceof Map && Boolean.TRUE.equals(((Map<?, ?>) node).get("redacted")) ? (Map<?, ?>) node : null;
+    }
+
+    /** fx_exec carries the operation arguments in a nested {@code args} object. */
+    @SuppressWarnings("unchecked")
+    private static void redact(Map<String, Object> args, String placeholder) {
+        for (String key : TEXT_ARGS) {
+            if (args.get(key) != null) {
+                args.put(key, placeholder);
+            }
+        }
+        if (args.get("args") instanceof Map) {
+            Map<String, Object> nested = new LinkedHashMap<>((Map<String, Object>) args.get("args"));
+            redact(nested, placeholder);
+            args.put("args", nested);
+        }
+    }
+
+    private static String firstText(Map<String, Object> args) {
+        for (String key : TEXT_ARGS) {
+            if (args.get(key) != null) {
+                return String.valueOf(args.get(key));
+            }
+        }
+        return args.get("args") instanceof Map ? firstText(Results.asMap(args.get("args"))) : null;
+    }
+
+    /**
+     * One variable per field and text: the field's fx:id where that is a usable name, otherwise password;
+     * a second, different text gets password2 and so on, so a replay types what was typed.
+     */
+    private static String secretName(Map<?, ?> node, String text) {
+        String key = node.get("ref") + "\u0000" + text;
+        String known = secrets.get(key);
+        if (known != null) {
+            return known;
+        }
+        Object id = node.get("id");
+        String base = id != null && String.valueOf(id).matches("[A-Za-z0-9_.-]+") ? String.valueOf(id) : "password";
+        String name = base;
+        for (int n = 2; secrets.containsValue(name); n++) {
+            name = base + n;
+        }
+        secrets.put(key, name);
+        return name;
     }
 
     private static void recordAssert(Map<String, Object> args) {
@@ -109,6 +192,14 @@ final class Recorder {
     }
 
     static Map<String, Object> assertNode(Map<String, Object> a) throws Exception {
+        return assertNode(a, true);
+    }
+
+    /**
+     * Replay calls the handlers directly, so its actions are not recorded; its asserts must not be either,
+     * or a recording made around fx_replay would hold asserts without the steps they check.
+     */
+    static Map<String, Object> assertNode(Map<String, Object> a, boolean record) throws Exception {
         Object selector = a.get("selector");
         if (selector == null || String.valueOf(selector).isBlank()) {
             throw new RpcError(-32602, "selector is required");
@@ -135,7 +226,9 @@ final class Recorder {
             pass.append(" value=\"").append(expectedValue).append('"');
         }
         Map<String, Object> result = Results.text(pass.toString());
-        recordAssert(a);
+        if (record) {
+            recordAssert(a);
+        }
         return result;
     }
 
@@ -365,12 +458,16 @@ final class Recorder {
         }
     }
 
+    /** Set only by {@link #replayMain}, which runs in its own process. */
+    private static volatile boolean cliMode;
+
     private static Map<String, Object> replayPlan(Map<String, Object> a) throws Exception {
         Object file = a.get("file");
         if (file == null || String.valueOf(file).isBlank()) {
             throw new RpcError(-32602, "file is required (path to a recorded plan)");
         }
-        Path path = Path.of(String.valueOf(file));
+        // the CLI user picks the plan; an MCP client is held to the working directory like for writes
+        Path path = cliMode ? Path.of(String.valueOf(file)) : ToolCatalog.readablePath(String.valueOf(file));
         if (!Files.isReadable(path)) {
             return Results.toolError("Cannot read plan file " + path.toAbsolutePath());
         }
@@ -386,6 +483,20 @@ final class Recorder {
         retries = Math.max(0, Math.min(10, retries));
         Map<String, Object> variables = a.get("variables") instanceof Map
                 ? new LinkedHashMap<>(Results.asMap(a.get("variables"))) : new LinkedHashMap<>();
+        // without this a replay would type the literal placeholder into the password field
+        List<String> missing = new ArrayList<>();
+        if (plan.get("secrets") instanceof List) {
+            for (Object secret : (List<?>) plan.get("secrets")) {
+                if (!variables.containsKey(String.valueOf(secret))) {
+                    missing.add(String.valueOf(secret));
+                }
+            }
+        }
+        if (!missing.isEmpty()) {
+            return Results.toolError("Plan " + path.getFileName() + " needs the password variable(s) "
+                    + String.join(", ", missing) + ". Pass them with fx_replay variables={\"" + missing.get(0)
+                    + "\": \"...\"} or --var " + missing.get(0) + "=...");
+        }
         long delayMs = a.get("delayMs") instanceof Number ? ((Number) a.get("delayMs")).longValue() : 300;
         delayMs = Math.max(0, Math.min(10_000, delayMs));
         long started = System.currentTimeMillis();
@@ -408,8 +519,10 @@ final class Recorder {
                 try {
                     String blocked = ToolCatalog.dangerousBlocked(tool, args);
                     result = blocked != null ? Results.toolError(blocked)
-                            : "fx_assert".equals(tool) ? assertNode(args)
+                            : "fx_assert".equals(tool) ? assertNode(args, false)
                             : ToolCatalog.invoke(tool == null ? "" : tool, args, EndpointClient.baseUrl(args.get("port")));
+                } catch (InterruptedException e) {
+                    throw e; // the client cancelled the replay
                 } catch (Exception e) {
                     result = Results.toolError(tool + " failed: " + e);
                 }
@@ -502,6 +615,8 @@ final class Recorder {
                 }
                 Files.write(path, response.body());
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // the next sleep ends the cancelled replay
         } catch (Exception ignored) {
             // A failed screenshot must not hide the original replay failure.
         }
@@ -514,6 +629,15 @@ final class Recorder {
 
     /** CLI mode: java -jar fxpilot.jar --replay plan.json [--port N] [--delay MS] [--continue-on-error] */
     static int replayMain(String[] args) throws Exception {
+        cliMode = true;
+        try {
+            return replayCli(args);
+        } finally {
+            cliMode = false;
+        }
+    }
+
+    private static int replayCli(String[] args) throws Exception {
         if (args.length < 2) {
             System.err.println("Usage: java -jar fxpilot.jar --replay <plan.json> "
                     + "[--port <n>] [--delay <ms>] [--continue-on-error] [--retry <n>] "
@@ -555,7 +679,9 @@ final class Recorder {
                         break;
                     }
                     default:
-                        break;
+                        // a typo such as --prot must not silently replay against the default port
+                        System.err.println("Unknown option: " + args[i]);
+                        return 2;
                 }
             }
         } catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
