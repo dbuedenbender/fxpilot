@@ -7,8 +7,8 @@ Requirements: JDK 17 or newer (the demo uses JavaFX 21).
 ## Build
 
 ```bat
-mvn -DskipTests install
-mvn -f examples\demo-app\pom.xml package
+mvnw.cmd -DskipTests install
+mvnw.cmd -f examples\demo-app\pom.xml package
 ```
 
 The first command installs the current FxPilot into the local Maven repository; once the version is on Maven Central, the second one is enough.
@@ -17,9 +17,9 @@ The first command installs the current FxPilot into the local Maven repository; 
 
 | Command | Endpoint settings |
 |---|---|
-| `mvn -f examples\demo-app\pom.xml javafx:run` | port 8765, no token |
-| `mvn -f examples\demo-app\pom.xml javafx:run@safe` | port 8765, `token=auto`, `deny=#deleteAllButton,#resetButton,.danger`, `dangerous=false` |
-| `mvn -f examples\demo-app\pom.xml javafx:run@readonly` | port 8765, `readonly=true` |
+| `mvnw.cmd -f examples\demo-app\pom.xml javafx:run` | port 8765, no token |
+| `mvnw.cmd -f examples\demo-app\pom.xml javafx:run@safe` | port 8765, `token=auto`, `deny=#deleteAllButton,#resetButton,.danger`, `dangerous=false` |
+| `mvnw.cmd -f examples\demo-app\pom.xml javafx:run@readonly` | port 8765, `readonly=true` |
 
 Without Maven, start `io.github.dbuedenbender.fxpilot.demo.Launcher` with JavaFX and `fxpilot.jar` on the classpath and `-Dfxpilot.port=8765`. `Launcher` exists because JavaFX refuses a main class that extends `Application` when JavaFX is not on the module path.
 

@@ -2,7 +2,7 @@
 # Starts both example apps headless (Monocle) and replays their plans against them.
 #   demo-app       classpath, FxPilot as a library dependency
 #   modular-demo   module path, FxPilot as a JPMS module ("requires io.github.dbuedenbender.fxpilot")
-# Needs the current FxPilot installed (mvn -DskipTests install) and JDK 21+ (Monocle 21). Used by CI; runs locally too.
+# Needs the current FxPilot installed (./mvnw -DskipTests install) and JDK 21+ (Monocle 21). Used by CI; runs locally too.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -18,7 +18,7 @@ WORK=target/headless
 mkdir -p "$WORK"
 EXTRA_JVM=${EXTRA_JVM:-}
 
-mvn -B -q dependency:copy -Dartifact="org.testfx:openjfx-monocle:$MONOCLE_VERSION" -DoutputDirectory="$WORK"
+./mvnw -B -q dependency:copy -Dartifact="org.testfx:openjfx-monocle:$MONOCLE_VERSION" -DoutputDirectory="$WORK"
 MONOCLE="$WORK/openjfx-monocle-$MONOCLE_VERSION.jar"
 HEADLESS="-Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw -Dheadless.geometry=1920x1200-32"
 
@@ -43,7 +43,7 @@ cleanup() { for p in "${PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null || 
 trap cleanup EXIT
 
 # --- demo-app on the class path
-mvn -B -q -f examples/demo-app/pom.xml package dependency:build-classpath -Dmdep.outputFile="$ROOT/$WORK/demo-cp.txt"
+./mvnw -B -q -f examples/demo-app/pom.xml package dependency:build-classpath -Dmdep.outputFile="$ROOT/$WORK/demo-cp.txt"
 # shellcheck disable=SC2086
 "${JAVA[@]}" $EXTRA_JVM $HEADLESS -Dfxpilot.port=8781 \
     -cp "examples/demo-app/target/classes$SEP$(cat "$WORK/demo-cp.txt")$SEP$MONOCLE" \
@@ -53,7 +53,7 @@ wait_for_endpoint 8781 "$WORK/demo.log"
 replay 8781 examples/plans/demo-smoke.json examples/plans/demo-orders.json
 
 # --- modular-demo on the module path; Monocle is patched into javafx.graphics
-mvn -B -q -f examples/modular-demo/pom.xml package dependency:copy-dependencies -DincludeScope=runtime \
+./mvnw -B -q -f examples/modular-demo/pom.xml package dependency:copy-dependencies -DincludeScope=runtime \
     -DoutputDirectory="$ROOT/$WORK/mods"
 # shellcheck disable=SC2086
 "${JAVA[@]}" $EXTRA_JVM $HEADLESS -Dfxpilot.port=8782 \

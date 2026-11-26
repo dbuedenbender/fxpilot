@@ -90,7 +90,7 @@ Both scripts set the version and the hash in all three files (`-Sha256` / a seco
 
 ```bash
 export MAVEN_GPG_PASSPHRASE="..."
-mvn -Prelease -DskipTests verify
+./mvnw -Prelease -DskipTests verify
 ```
 
 This signs the jars locally without uploading them.

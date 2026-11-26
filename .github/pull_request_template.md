@@ -12,8 +12,8 @@ Describe the change and why it is needed.
 
 ## Testing
 
-- [ ] `mvn clean verify` passes
-- [ ] Example app builds with `mvn -f examples\demo-app\pom.xml package`
+- [ ] `mvnw.cmd clean verify` passes
+- [ ] Example app builds with `mvnw.cmd -f examples\demo-app\pom.xml package`
 - [ ] Manual verification performed, if needed
 
 ## Security checklist

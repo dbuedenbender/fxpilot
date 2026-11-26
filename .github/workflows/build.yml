@@ -32,7 +32,7 @@ jobs:
           cache: maven
       - name: Maven ${{ matrix.goal }}
         # retries download failures only; a failing test fails the job at once
-        run: bash .github/retry-downloads.sh mvn -B ${{ matrix.goal }}
+        run: bash .github/retry-downloads.sh ./mvnw -B ${{ matrix.goal }}
 
   examples:
     runs-on: ubuntu-latest
@@ -46,7 +46,7 @@ jobs:
       - name: Build the example apps and replay their plans headless
         # installs the current fxpilot first, so the examples build against it before it is on Maven Central;
         # runs demo-app on the class path and modular-demo on the module path (Monocle, no display needed)
-        run: bash .github/retry-downloads.sh bash -c "mvn -B -DskipTests install && bash examples/replay-headless.sh"
+        run: bash .github/retry-downloads.sh bash -c "./mvnw -B -DskipTests install && bash examples/replay-headless.sh"
 
   jdk11:
     # The jar targets Java 11, but the tests need JDK 21 (Monocle 21); this runs the built MCP server on JDK 11.
@@ -59,7 +59,7 @@ jobs:
           java-version: '17'
           cache: maven
       - name: Build the jar
-        run: bash .github/retry-downloads.sh mvn -B -DskipTests package
+        run: bash .github/retry-downloads.sh ./mvnw -B -DskipTests package
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

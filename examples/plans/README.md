@@ -11,7 +11,7 @@
 Both start with `#resetButton`, so they run in any order and repeatedly. Start the demo app first (default mode, not `@safe`, where the reset button is denied):
 
 ```bat
-mvn -f examples\demo-app\pom.xml javafx:run
+mvnw.cmd -f examples\demo-app\pom.xml javafx:run
 ```
 
 Then replay the plans:

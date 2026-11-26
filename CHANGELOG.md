@@ -25,6 +25,7 @@ Security release. Update from 1.0.0 and 1.1.0: 1.1.0 writes text typed into pass
 - README: the settings are process-wide and can be set in code with `System.setProperty` before `startIfEnabled()`.
 - The compiler checks an explicit list of lint categories instead of `-Xlint:all`, so a newer JDK with new categories does not break the build.
 - `scripts/pin-release.sh` and `scripts/pin-release.ps1` update the version and SHA-256 pins in `fxpilot-mcp.cmd`, `fxpilot-mcp.sh` and `fxpilot-jar.ps1` from Maven Central's `fxpilot-<version>.jar.sha256` in one step. The order stays "publish, then pin", so no launcher checks a new version against the previous checksum before the artifact exists; the release workflow points to the script after a deployment.
+- The repository ships the Maven Wrapper (`mvnw`, `mvnw.cmd`, Maven 3.9.16), and CI builds with `./mvnw`, so a local Maven installation is optional. A new `.gitattributes` keeps `mvnw` and `*.sh` at LF and the Windows scripts at CRLF, so the shell launchers also run from Git Bash on Windows.
 
 ### Fixed
 

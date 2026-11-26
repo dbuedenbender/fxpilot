@@ -292,7 +292,7 @@
             <properties><javafx.test.platform>mac-aarch64</javafx.test.platform></properties>
         </profile>
 
-        <!-- Release only: mvn -Prelease deploy (GPG signs artifacts, which CI must not do) -->
+        <!-- Release only: mvnw.cmd -Prelease deploy (GPG signs artifacts, which CI must not do) -->
         <profile>
             <id>release</id>
             <build>

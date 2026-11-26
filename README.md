@@ -58,11 +58,13 @@ If you do not want to keep the jar locally, use the launcher scripts in [`script
 
    ```bat
    cd C:\path\to\fxpilot
-   mvn -DskipTests clean install
+   mvnw.cmd -DskipTests clean install
    ```
 
+   On Linux and macOS use `./mvnw` instead of `mvnw.cmd`. The wrapper pins Maven 3.9.16 and downloads it on the first run, so no Maven installation is needed.
+
    The jar is then in `target\fxpilot.jar` and in the local Maven repository under `io\github\dbuedenbender\fxpilot\`.
-   This installs without running the tests. The test suite needs JDK 21 (see [Development](#development)); set `JAVA_HOME` to a JDK 21 and run `mvn verify` to execute it.
+   This installs without running the tests. The test suite needs JDK 21 (see [Development](#development)); set `JAVA_HOME` to a JDK 21 and run `mvnw.cmd verify` to execute it.
 
 2. Register the MCP server globally for Claude Code (applies to all projects):
 
@@ -407,21 +409,23 @@ TestFX drives a JavaFX app from the inside as a test library, with JUnit integra
 ## Development
 
 ```bat
-mvn test          :: unit, HTTP and headless UI tests
-mvn clean verify  :: full build with coverage report and gate, no signing
-mvn -Prelease deploy  :: release build, GPG-signs and uploads to the Central Portal
+mvnw.cmd test          :: unit, HTTP and headless UI tests
+mvnw.cmd clean verify  :: full build with coverage report and gate, no signing
+mvnw.cmd -Prelease deploy  :: release build, GPG-signs and uploads to the Central Portal
 java -jar fxpilot.jar --replay plan.json  :: replay a recorded plan in CI
 ```
 
-The code compiles against JavaFX 11, the oldest supported version. The UI tests start a real scene graph headless with Monocle on JavaFX 21, because JavaFX 11 crashes in its native font code on current JDKs; running the tests therefore needs **JDK 21**. CI builds the library with JDK 17 (`-DskipTests clean package`) and runs the full suite with JDK 21, so both cases stay covered. On a JDK 17 machine set `JAVA_HOME` to a JDK 21 for `mvn verify`; otherwise the UI tests fail with `UnsupportedClassVersionError`.
+`mvnw.cmd` and `./mvnw` run the Maven wrapper in this repository (Maven 3.9.16, downloaded on the first run). A local Maven installation works too, but the wrapper is what CI uses.
 
-The compiler runs with `-Werror` and an explicit list of `-Xlint` categories (see `pom.xml`), so a warning fails the build; fix warnings instead of suppressing them. `mvn verify` fails if the line coverage of a package drops below 60 % (75 % for the MCP package; JaCoCo report in `target/site/jacoco`). Extra JVM options for the tests go into `-Dsurefire.jvmArgs=...`.
+The code compiles against JavaFX 11, the oldest supported version. The UI tests start a real scene graph headless with Monocle on JavaFX 21, because JavaFX 11 crashes in its native font code on current JDKs; running the tests therefore needs **JDK 21**. CI builds the library with JDK 17 (`-DskipTests clean package`) and runs the full suite with JDK 21, so both cases stay covered. On a JDK 17 machine set `JAVA_HOME` to a JDK 21 for `mvnw.cmd verify`; otherwise the UI tests fail with `UnsupportedClassVersionError`.
 
-The MCP server is part of the jar, so `mvn verify` compiles and tests it.
+The compiler runs with `-Werror` and an explicit list of `-Xlint` categories (see `pom.xml`), so a warning fails the build; fix warnings instead of suppressing them. `mvnw.cmd verify` fails if the line coverage of a package drops below 60 % (75 % for the MCP package; JaCoCo report in `target/site/jacoco`). Extra JVM options for the tests go into `-Dsurefire.jvmArgs=...`.
+
+The MCP server is part of the jar, so `mvnw.cmd verify` compiles and tests it.
 
 ### Releases
 
-`mvn -Prelease deploy` signs the artifacts and uploads them to the Central Portal. `autoPublish` is `false`, so review the deployment in the portal and release it there.
+`mvnw.cmd -Prelease deploy` signs the artifacts and uploads them to the Central Portal. `autoPublish` is `false`, so review the deployment in the portal and release it there.
 
 The workflow `.github/workflows/release.yml` does the same for `v*` tags and refuses to publish when the tag (`v1.1.1`) does not match `project.version` (`1.1.1`). Required repository secrets:
 

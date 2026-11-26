@@ -23,8 +23,8 @@ module io.github.dbuedenbender.fxpilot.modulardemo {
 ## Build and run
 
 ```bat
-mvn -DskipTests install
-mvn -f examples\modular-demo\pom.xml javafx:run
+mvnw.cmd -DskipTests install
+mvnw.cmd -f examples\modular-demo\pom.xml javafx:run
 ```
 
 `javafx:run` starts the app on the module path with `-Dfxpilot.port=8765`. The app calls `FxPilotServer.startIfEnabled()` itself.

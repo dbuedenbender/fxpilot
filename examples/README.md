@@ -15,7 +15,7 @@ This directory contains small, copyable examples for new users.
 Build and run the demo app:
 
 ```bat
-mvn -f examples\demo-app\pom.xml javafx:run
+mvnw.cmd -f examples\demo-app\pom.xml javafx:run
 ```
 
 The demo listens on port `8765` when started through its Maven configuration.

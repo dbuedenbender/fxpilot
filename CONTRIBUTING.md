@@ -8,23 +8,23 @@ Requirements:
 
 - JDK 21 to run the tests (the library itself targets JDK 11)
 - JDK 17 is enough to build/package the library
-- Maven 3.8 or newer
+- Maven 3.8 or newer, or the wrapper in this repository (`mvnw.cmd` on Windows, `./mvnw` elsewhere), which pins Maven 3.9.16
 - JavaFX 11 or newer for running examples
 
-The UI tests run headless with Monocle on JavaFX 21; nothing has to be installed for that. Monocle 21 is compiled for Java 21, so `mvn verify` on JDK 17 fails with `UnsupportedClassVersionError`. Point `JAVA_HOME` at a JDK 21, or use `mvn -DskipTests clean package` on JDK 17. CI does both: `package` on JDK 17 and `verify` on JDK 21.
+The UI tests run headless with Monocle on JavaFX 21; nothing has to be installed for that. Monocle 21 is compiled for Java 21, so `mvnw.cmd verify` on JDK 17 fails with `UnsupportedClassVersionError`. Point `JAVA_HOME` at a JDK 21, or use `mvnw.cmd -DskipTests clean package` on JDK 17. CI does both: `package` on JDK 17 and `verify` on JDK 21.
 
-The compiler runs with `-Werror` and an explicit list of `-Xlint` categories (`pom.xml`); warnings fail the build. `mvn verify` fails when the line coverage of a package drops below 60 % (75 % for the MCP package).
+The compiler runs with `-Werror` and an explicit list of `-Xlint` categories (`pom.xml`); warnings fail the build. `mvnw.cmd verify` fails when the line coverage of a package drops below 60 % (75 % for the MCP package).
 
 Build and test:
 
 ```bat
-mvn clean verify
+mvnw.cmd clean verify
 ```
 
 Build the example app:
 
 ```bat
-mvn -f examples\demo-app\pom.xml package
+mvnw.cmd -f examples\demo-app\pom.xml package
 ```
 
 ## Project structure
@@ -47,7 +47,7 @@ docs/                                                release and publishing docu
 - Keep changes focused and explain the user-visible behavior.
 - Keep the API small: only `FxPilotServer`, `FxPilotAgent` and `FxPilotMcpServer` are public API. Code that both packages need goes into `internal` (public classes, not exported by `module-info.java`).
 - Add or update tests for behavior changes. A new endpoint operation goes into `Operations` with its kind; a new MCP tool into `ToolCatalog` with profile, kind and recording flag.
-- Run `mvn clean verify` before opening a PR.
+- Run `mvnw.cmd clean verify` before opening a PR.
 - Update `README.md`, `CHANGELOG.md` or examples when the change affects users.
 - Do not commit `target/`, `.idea/`, private keys, tokens or replay plans containing sensitive data.
 

@@ -1,0 +1,8 @@
+# Shell scripts and the Maven wrapper must keep LF, or a Windows checkout cannot run them from Git Bash,
+# WSL or CI. Windows scripts stay CRLF, which cmd.exe and PowerShell expect.
+mvnw text eol=lf
+*.sh text eol=lf
+mvnw.cmd text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
