@@ -60,7 +60,7 @@ git tag -a v1.0.1 -m "FxPilot 1.0.1"
 git push origin v1.0.1
 ```
 
-The workflow refuses to publish when the tag (`v1.0.1`) and `project.version` (`1.0.1`) do not match.
+The workflow refuses to publish unless it runs on the tag that matches `project.version` (`v1.0.1` for `1.0.1`); a manual dispatch from a branch fails before anything is deployed.
 
 ## 6. Publish in the Central Portal
 

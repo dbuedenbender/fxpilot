@@ -28,6 +28,8 @@ Security release. Update from 1.0.0 and 1.1.0: 1.1.0 writes text typed into pass
 - The repository ships the Maven Wrapper (`mvnw`, `mvnw.cmd`, Maven 3.9.16), and CI builds with `./mvnw`, so a local Maven installation is optional. A new `.gitattributes` keeps `mvnw` and `*.sh` at LF and the Windows scripts at CRLF, so the shell launchers also run from Git Bash on Windows.
 - The JaCoCo gate follows the measured level: 78 % of the lines per package (85 % for `internal`) and 78 % for the whole jar, instead of 60 % and 75 % for the MCP package. `Codes`, which only holds error-code constants, is excluded.
 - `FXPILOT_TOOLS` defaults to `standard` instead of `all`: `tools/list` offers the reading, driving, waiting, asserting, screenshot and record/replay tools, which is enough for most sessions and costs less context. `FXPILOT_TOOLS=all` adds the robot, clipboard, canvas, WebView, chart, media, image and property tools; `fx_exec` keeps every operation reachable in all profiles, and a hidden tool called by name still fails with a hint.
+- The release workflow publishes only on the tag that matches `project.version`: a `workflow_dispatch` from a branch used to skip that check and deploy whatever `main` had. All GitHub Actions are pinned by commit SHA instead of a moving tag.
+- The example apps carry the same Apache header as the library, and a test checks that every Java source under `src` and `examples` has it.
 
 ### Fixed
 

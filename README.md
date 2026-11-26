@@ -429,7 +429,7 @@ The MCP server is part of the jar, so `mvnw.cmd verify` compiles and tests it.
 
 `mvnw.cmd -Prelease deploy` signs the artifacts and uploads them to the Central Portal. `autoPublish` is `false`, so review the deployment in the portal and release it there.
 
-The workflow `.github/workflows/release.yml` does the same for `v*` tags and refuses to publish when the tag (`v1.1.1`) does not match `project.version` (`1.1.1`). Required repository secrets:
+The workflow `.github/workflows/release.yml` does the same for `v*` tags and publishes only on the tag that matches `project.version` (`v1.1.1` for `1.1.1`); a manual dispatch from a branch fails before anything is deployed. Required repository secrets:
 
 | Secret | Purpose |
 |---|---|
