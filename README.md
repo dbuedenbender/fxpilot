@@ -4,7 +4,13 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.dbuedenbender/fxpilot.svg)](https://central.sonatype.com/artifact/io.github.dbuedenbender/fxpilot)
 [![Javadoc](https://img.shields.io/badge/javadoc-latest-blue)](https://dbuedenbender.github.io/fxpilot/)
 
-FxPilot lets Claude Code drive a running JavaFX application: read the scene graph, click, enter text, select items and take screenshots. It has two parts:
+<a href="https://cdn.jsdelivr.net/gh/dbuedenbender/fxpilot@main/docs/media/fxpilot-demo.mp4"><img src="docs/media/fxpilot-demo-preview.webp" alt="FxPilot demo: an AI agent adds a customer to a running JavaFX app after a plain-language request" width="880"></a>
+
+*Demo: the agent turns "Add the customer Acme Tools from Austria, wholesale, credit limit 20,000" into `fx_*` calls, fills the form, saves it and verifies the result. Looping 30-second preview — [full demo with setup, deny list and replay (1:15)](https://cdn.jsdelivr.net/gh/dbuedenbender/fxpilot@main/docs/media/fxpilot-demo.mp4).*
+
+**Drive a running JavaFX app with plain-language requests.** No test code — and with the Java agent, no changes to the app at all.
+
+FxPilot lets Claude Code read the scene graph, click, enter text, select items and take screenshots. It has two parts:
 
 ```
 Claude Code ──stdio/MCP──> fxpilot.jar (MCP server) ──HTTP 127.0.0.1:<port>──> fxpilot.jar (inside the app)
