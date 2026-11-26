@@ -39,7 +39,22 @@ class JsonTest {
         assertEquals("\"a\\\\b\"", Json.write("a\\b"));
         assertEquals("\"line1\\nline2\"", Json.write("line1\nline2"));
         assertEquals("\"tab\\there\"", Json.write("tab\there"));
+        assertEquals("\"\\r\"", Json.write("\r"));
         assertEquals("\"\\u0001\"", Json.write("\u0001"));
+    }
+
+    @Test
+    void parsesAllEscapeSequences() {
+        assertEquals("\"", Json.parse("\"\\\"\""));
+        assertEquals("\\", Json.parse("\"\\\\\""));
+        assertEquals("/", Json.parse("\"\\/\""));
+        assertEquals("\b", Json.parse("\"\\b\""));
+        assertEquals("\f", Json.parse("\"\\f\""));
+        assertEquals("\n", Json.parse("\"\\n\""));
+        assertEquals("\r", Json.parse("\"\\r\""));
+        assertEquals("\t", Json.parse("\"\\t\""));
+        assertEquals("A", Json.parse("\"\\u0041\""));
+        assertThrows(Json.ParseException.class, () -> Json.parse("\"\\q\""), "bad escape");
     }
 
     @Test
@@ -111,6 +126,30 @@ class JsonTest {
         for (String invalid : List.of("+1", "01", "-01", ".5", "1.", "1e", "1e+", "1e309", "-1e309", "--1")) {
             assertThrows(Json.ParseException.class, () -> Json.parse(invalid), invalid);
         }
+    }
+
+    @Test
+    void parsesEmptyContainers() {
+        assertEquals(Map.of(), Json.parse("{}"));
+        assertEquals(List.of(), Json.parse("[]"));
+    }
+
+    @Test
+    void rejectsNullInput() {
+        assertThrows(Json.ParseException.class, () -> Json.parse(null));
+    }
+
+    @Test
+    void rejectsMalformedInput() {
+        for (String invalid : List.of("", " ", "{", "[", "{\"a\" 1}", "{\"a\":1 \"b\":2}",
+                "[1 2]", "1 2", "tru", "fals", "nul", "x", "\"unterminated")) {
+            assertThrows(Json.ParseException.class, () -> Json.parse(invalid), invalid);
+        }
+    }
+
+    @Test
+    void rejectsIntegersOutsideTheLongRange() {
+        assertThrows(Json.ParseException.class, () -> Json.parse("99999999999999999999"));
     }
 
     @Test
