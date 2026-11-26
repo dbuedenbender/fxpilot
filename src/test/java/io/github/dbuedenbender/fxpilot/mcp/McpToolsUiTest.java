@@ -21,6 +21,7 @@ import io.github.dbuedenbender.fxpilot.TestEndpoint;
 import io.github.dbuedenbender.fxpilot.TestUi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -243,6 +244,7 @@ class McpToolsUiTest {
     }
 
     @Test
+    @Tag("symlinks")
     void aSymbolicLinkCannotLeadAWriteOutOfTheWorkingDirectory() throws Exception {
         Path link = Path.of("target", "mcp-test", "escape-link");
         Files.createDirectories(link.getParent());

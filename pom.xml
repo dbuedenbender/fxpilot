@@ -51,6 +51,8 @@
         <!-- Set by jacoco:prepare-agent; extra JVM options for the tests go into surefire.jvmArgs. -->
         <argLine></argLine>
         <surefire.jvmArgs></surefire.jvmArgs>
+        <!-- JVM options that only newer JDKs understand, set by the jdk-unsafe-warnings profile. -->
+        <surefire.jdkArgs></surefire.jdkArgs>
     </properties>
 
     <dependencies>
@@ -101,7 +103,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.6.1</version>
                 <configuration>
-                    <argLine>@{argLine} ${surefire.jvmArgs}</argLine>
+                    <argLine>@{argLine} ${surefire.jvmArgs} ${surefire.jdkArgs}</argLine>
                     <!-- Tests run on the classpath (the JavaFX test runtime and Monocle are classpath jars);
                          McpProtocolTest starts the MCP server once on the module path to check module-info. -->
                     <useModulePath>false</useModulePath>
@@ -290,6 +292,20 @@
             <id>fx-test-windows</id>
             <activation><os><family>windows</family></os></activation>
             <properties><javafx.test.platform>win</javafx.test.platform></properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <!-- Windows creates symbolic links only with SeCreateSymbolicLinkPrivilege
+                                 (administrator or Developer Mode). Without it the test aborts through an
+                                 assumption and Surefire prints a [WARNING] for the skipped test. -->
+                            <excludedGroups>symlinks</excludedGroups>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
         <profile>
             <id>fx-test-linux</id>
@@ -305,6 +321,18 @@
             <id>fx-test-mac-aarch64</id>
             <activation><os><family>mac</family><arch>aarch64</arch></os></activation>
             <properties><javafx.test.platform>mac-aarch64</javafx.test.platform></properties>
+        </profile>
+
+        <!-- JDK 23+ warns when JavaFX 21 loads native libraries and uses sun.misc.Unsafe for Marlin's
+             off-heap buffer. The test runtime is pinned to JavaFX 21 for JDK 21 CI, so acknowledge both
+             in the test JVM instead. The flags do not exist on JDK 21 and are not a runtime requirement
+             of FxPilot itself. -->
+        <profile>
+            <id>jdk-unsafe-warnings</id>
+            <activation><jdk>[23,)</jdk></activation>
+            <properties>
+                <surefire.jdkArgs>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow</surefire.jdkArgs>
+            </properties>
         </profile>
 
         <!-- Release only: mvnw.cmd -Prelease deploy (GPG signs artifacts, which CI must not do) -->
