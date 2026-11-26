@@ -50,17 +50,17 @@ gh secret set MAVEN_GPG_PASSPHRASE --repo dbuedenbender/fxpilot
 For an existing tag:
 
 ```bash
-gh workflow run release.yml --repo dbuedenbender/fxpilot --ref v1.0.0
+gh workflow run release.yml --repo dbuedenbender/fxpilot --ref v1.1.1
 ```
 
 For a new version, update `project.version` and `CHANGELOG` first, then push a matching tag:
 
 ```bash
-git tag -a v1.0.1 -m "FxPilot 1.0.1"
-git push origin v1.0.1
+git tag -a v1.1.1 -m "FxPilot 1.1.1"
+git push origin v1.1.1
 ```
 
-The workflow refuses to publish unless it runs on the tag that matches `project.version` (`v1.0.1` for `1.0.1`); a manual dispatch from a branch fails before anything is deployed.
+The workflow refuses to publish unless it runs on the tag that matches `project.version` (`v1.1.1` for `1.1.1`); a manual dispatch from a branch fails before anything is deployed.
 
 ## 6. Publish in the Central Portal
 
