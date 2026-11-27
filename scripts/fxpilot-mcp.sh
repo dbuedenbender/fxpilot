@@ -4,8 +4,8 @@ set -eu
 # SHA-256 of the published default version, so the jar is checked against a value from this repository and not
 # only against a file from the same server. Another FXPILOT_VERSION is checked against FXPILOT_SHA256 or, without
 # it, against the .sha256 file Maven Central publishes next to the jar.
-DEFAULT_VERSION="1.1.0"
-DEFAULT_SHA256="dc2825e18b5695d103ec0b49d07a9f1cb9041cccb78966bd9d4170fa9986dfff"
+DEFAULT_VERSION="1.1.1"
+DEFAULT_SHA256="a74747a020d1e0be968e453943da7a3353a7d261f444f79bcdcdbe628598193d"
 
 VERSION="${FXPILOT_VERSION:-$DEFAULT_VERSION}"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/fxpilot"

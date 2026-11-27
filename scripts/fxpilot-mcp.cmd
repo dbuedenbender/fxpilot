@@ -3,8 +3,8 @@ setlocal
 rem SHA-256 of the published default version, so the jar is checked against a value from this repository and not
 rem only against a file from the same server. Another FXPILOT_VERSION is checked against FXPILOT_SHA256 or, without
 rem it, against the .sha256 file Maven Central publishes next to the jar.
-set "DEFAULT_VERSION=1.1.0"
-set "DEFAULT_SHA256=dc2825e18b5695d103ec0b49d07a9f1cb9041cccb78966bd9d4170fa9986dfff"
+set "DEFAULT_VERSION=1.1.1"
+set "DEFAULT_SHA256=a74747a020d1e0be968e453943da7a3353a7d261f444f79bcdcdbe628598193d"
 
 if "%FXPILOT_VERSION%"=="" set "FXPILOT_VERSION=%DEFAULT_VERSION%"
 set "CACHE_DIR=%LOCALAPPDATA%\FxPilot"
